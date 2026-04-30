@@ -1,60 +1,126 @@
 
 // ============================================================
-// MÓDULO: SMARTFLOW RENDER v6.3 (Ultra-ligero, sin EffectComposer)
+// MÓDULO: SMARTFLOW RENDER v6.1 (Visual Effects & UI Bridge)
 // Archivo: js/render.js
 // ============================================================
 
 const SmartFlowRender = (function() {
-    let _core = null;
+    // --- Recursos de Three.js (obtenidos del Core) ---
+    let _composer = null;
+    let _outlinePass = null;
     let _currentHighlighted = null;
     let _infoPanel = null;
-    let _originalMaterial = null; // guardar material original para restaurar
-
-    // ------------------------------------------------------------
-    // 1. RESALTADO DE SELECCIÓN (simple por material)
-    // ------------------------------------------------------------
-    function updateSelectionHighlight() {
-        const selected = _core.getSelected();
-
-        // Restaurar material anterior si existe
-        if (_currentHighlighted && _currentHighlighted.material) {
-            if (_originalMaterial) {
-                _currentHighlighted.material = _originalMaterial;
-                _originalMaterial = null;
-            } else {
-                _currentHighlighted.material.emissiveIntensity = 0;
-                _currentHighlighted.material.emissive = new THREE.Color(0x000000);
-            }
+    
+    // --- Referencia al Core (se obtiene globalmente) ---
+    let _core = null;
+    
+    // ==================== 1. CONFIGURACIÓN DE POST-PROCESADO ====================
+    function setupEffects() {
+        const scene = _core.getScene();
+        const camera = _core.getCamera();
+        const renderer = _core.getRenderer();
+        if (!scene || !camera || !renderer) {
+            console.warn("Render: Core no expone escena/cámara/renderer");
+            return;
         }
-
-        if (selected && selected.obj) {
-            const tag = selected.obj.tag;
-            const mesh = _core.getVisualMesh(tag);
-            if (mesh && mesh.material) {
-                // Guardar material original si es necesario
-                if (!_originalMaterial && mesh.material) {
-                    _originalMaterial = mesh.material.clone();
-                }
-                mesh.material.emissiveIntensity = 0.6;
-                mesh.material.emissive = new THREE.Color(0x00f2ff);
-                _currentHighlighted = mesh;
+        
+        // Verificar que los complementos de post-procesado estén disponibles
+        if (typeof THREE.EffectComposer !== 'undefined' && 
+            typeof THREE.RenderPass !== 'undefined' && 
+            typeof THREE.OutlinePass !== 'undefined') {
+            
+            _composer = new THREE.EffectComposer(renderer);
+            const renderPass = new THREE.RenderPass(scene, camera);
+            _composer.addPass(renderPass);
+            
+            _outlinePass = new THREE.OutlinePass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                scene, camera
+            );
+            _outlinePass.edgeStrength = 3;
+            _outlinePass.edgeGlow = 0.6;
+            _outlinePass.edgeThickness = 1.5;
+            _outlinePass.pulsePeriod = 2;
+            _outlinePass.visibleEdgeColor.setHex(0x00f2ff);  // cian brillante
+            _outlinePass.hiddenEdgeColor.setHex(0x1e293b);
+            _composer.addPass(_outlinePass);
+            
+            // Reemplazar el render loop del Core para usar el composer
+            // Guardamos la función original si existe
+            const originalAnimate = _core._animate;
+            if (originalAnimate) {
+                _core._animate = () => {
+                    if (_core.getControls()) _core.getControls().update();
+                    if (_composer) _composer.render();
+                    requestAnimationFrame(_core._animate);
+                };
+            } else {
+                // Si no hay animate guardado, creamos uno nuevo
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    if (_core.getControls()) _core.getControls().update();
+                    if (_composer) _composer.render();
+                };
+                animate();
             }
+            console.log("✔ Efectos de post-procesado (Outline) configurados");
         } else {
-            _currentHighlighted = null;
+            console.warn("Render: EffectComposer no disponible, usando render básico");
         }
     }
-
-    // ------------------------------------------------------------
-    // 2. VISTAS PREDEFINIDAS
-    // ------------------------------------------------------------
+    
+    // ==================== 2. RESALTADO DE SELECCIÓN ====================
+    function updateSelectionHighlight() {
+        const selected = _core.getSelected();
+        
+        if (_outlinePass) {
+            // Usar outline pass
+            if (selected && selected.obj) {
+                const tag = selected.obj.tag;
+                const mesh = _core.getVisualMesh(tag);
+                if (mesh) {
+                    _outlinePass.selectedObjects = [mesh];
+                    _currentHighlighted = mesh;
+                } else {
+                    _outlinePass.selectedObjects = [];
+                    _currentHighlighted = null;
+                }
+            } else {
+                _outlinePass.selectedObjects = [];
+                _currentHighlighted = null;
+            }
+        } else {
+            // Fallback: cambiar material emisivo
+            if (_currentHighlighted && _currentHighlighted.material) {
+                _currentHighlighted.material.emissiveIntensity = 0;
+            }
+            if (selected && selected.obj) {
+                const tag = selected.obj.tag;
+                const mesh = _core.getVisualMesh(tag);
+                if (mesh && mesh.material) {
+                    mesh.material.emissiveIntensity = 0.5;
+                    mesh.material.emissive = new THREE.Color(0x00f2ff);
+                    _currentHighlighted = mesh;
+                }
+            } else {
+                _currentHighlighted = null;
+            }
+        }
+    }
+    
+    // ==================== 3. VISTAS PREDEFINIDAS (CÁMARA) ====================
+    /**
+     * Cambia la vista de la cámara a una posición predefinida.
+     * @param {string} type - 'top', 'front', 'side', 'iso'
+     */
     function setView(type) {
         const camera = _core.getCamera();
         const controls = _core.getControls();
         if (!camera) return;
-
+        
         const distance = 8000;
         const target = new THREE.Vector3(0, 0, 0);
-
+        
         switch(type) {
             case 'top':
                 camera.position.set(0, distance, 0);
@@ -76,11 +142,10 @@ const SmartFlowRender = (function() {
             controls.target.copy(target);
             controls.update();
         }
+        _notifyUI(`Vista cambiada a: ${type.toUpperCase()}`, false);
     }
-
-    // ------------------------------------------------------------
-    // 3. PANEL DE INFORMACIÓN FLOTANTE
-    // ------------------------------------------------------------
+    
+    // ==================== 4. PUENTE CON LA UI (PANEL DE INFORMACIÓN) ====================
     function createInfoPanel() {
         let panel = document.getElementById('selectionInfo');
         if (!panel) {
@@ -107,10 +172,10 @@ const SmartFlowRender = (function() {
         }
         return panel;
     }
-
+    
     function updateInfoPanel(selected) {
         if (!_infoPanel) _infoPanel = createInfoPanel();
-
+        
         if (selected && selected.obj) {
             const obj = selected.obj;
             const pos = { x: obj.posX || 0, y: obj.posY || 0, z: obj.posZ || 0 };
@@ -134,27 +199,56 @@ const SmartFlowRender = (function() {
             `;
         }
     }
-
+    
     function initUIBridge() {
-        if (!_core) return;
+        if (!_core) {
+            console.warn("Render: Core no disponible para UI bridge");
+            return;
+        }
         _infoPanel = createInfoPanel();
+        
+        // Suscribirse al Core para actualizar el panel y el resaltado
         _core.subscribe(() => {
             const selected = _core.getSelected();
             updateInfoPanel(selected);
             updateSelectionHighlight();
         });
     }
-
-    // ------------------------------------------------------------
-    // 4. INICIALIZACIÓN
-    // ------------------------------------------------------------
+    
+    // ==================== 5. INICIALIZACIÓN ====================
     function init(coreInstance) {
         _core = coreInstance;
-        if (!_core) return;
+        if (!_core) {
+            console.error("Render: se requiere una instancia del Core");
+            return;
+        }
+        
+        setupEffects();
         initUIBridge();
+        
+        // Añadir función global para vistas (opcional, para botones)
         window.set3DView = setView;
-        console.log("✔ SmartFlowRender v6.3 listo (sin post-procesado)");
+        
+        console.log("✔ SmartFlowRender v6.1 listo (efectos visuales + UI)");
     }
-
-    return { init, setView, updateSelectionHighlight };
+    
+    // ==================== 6. NOTIFICACIÓN INTERNA ====================
+    function _notifyUI(msg, isErr) {
+        const statusEl = document.getElementById('statusMsg');
+        if (statusEl) {
+            statusEl.innerText = msg;
+            statusEl.style.color = isErr ? '#ef4444' : '#00f2ff';
+        }
+        console.log(msg);
+    }
+    
+    // ==================== API PÚBLICA ====================
+    return {
+        init: init,
+        setView: setView,
+        updateSelectionHighlight: updateSelectionHighlight,
+        // Exponer composer y outline si se necesita acceso externo
+        getComposer: () => _composer,
+        getOutlinePass: () => _outlinePass
+    };
 })();
