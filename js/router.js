@@ -1,6 +1,6 @@
 
 // ============================================================
-// SMARTFLOW ROUTER v6.1 (Volumetric Generator + Ortogonal Routing)
+// SMARTFLOW ROUTER v6.2 (Completo: auto‑codos, reductores, herencia)
 // Archivo: js/router.js
 // ============================================================
 
@@ -8,51 +8,40 @@ const SmartFlowRouter = (function() {
     let _core = null;
     let _catalog = null;
     let _notifyUI = (msg, isErr) => console.log(msg);
-    
-    // Configuración de tubería
-    const _config = {
-        segments: 12,           // segmentos circulares del tubo
-        defaultRadiusMM: 50,    // radio por defecto (mm) – se recalcula según diámetro
-        elbowRadiusFactor: 1.5  // radio de curvatura del codo (veces diámetro)
-    };
-    
-    // --- Helper: distancia euclidiana ---
-    const _dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-    
-    // --- Helper: clonar punto ---
+
+    // ------------------------------------------------------------
+    // Helpers geométricos
+    // ------------------------------------------------------------
+    const _dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y, a.z-b.z);
     const _clonePoint = (p) => ({ x: p.x, y: p.y, z: p.z });
-    
-    // ==================== 1. CREACIÓN DE MALLA VOLUMÉTRICA ====================
+    const _dot = (v1, v2) => v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+    const _normalize = (v) => {
+        const len = Math.hypot(v.x, v.y, v.z);
+        if (len === 0) return { dx:1, dy:0, dz:0 };
+        return { dx: v.x/len, dy: v.y/len, dz: v.z/len };
+    };
+    const _subtract = (a,b) => ({ x: a.x-b.x, y: a.y-b.y, z: a.z-b.z });
+
+    // ------------------------------------------------------------
+    // 1. Creación de malla volumétrica (tubería 3D)
+    // ------------------------------------------------------------
     function createLineMesh(lineData) {
-        // Obtener puntos desde lineData (puede estar en 'points' o '_cachedPoints')
         const points = lineData.points || lineData._cachedPoints;
-        if (!points || points.length < 2) {
-            console.warn("Router: línea sin puntos suficientes", lineData.tag);
-            return new THREE.Group();
-        }
-        
-        // Convertir a Vector3
+        if (!points || points.length < 2) return new THREE.Group();
+
         const vectors = points.map(p => new THREE.Vector3(p.x, p.y, p.z));
-        
-        // Determinar radio del tubo (diámetro en pulgadas -> mm / 2)
-        let diamMM = (parseFloat(lineData.diameter) || 4) * 25.4;
+        const diamMM = (parseFloat(lineData.diameter) || 4) * 25.4;
         const radius = Math.max(5, diamMM / 2);
-        
-        // Crear curva suave pero que pasa exactamente por los puntos (tensión 0)
         const curve = new THREE.CatmullRomCurve3(vectors);
         curve.curveType = 'catmullrom';
-        curve.tension = 0;          // 0 = pasa exactamente por los puntos
-        curve.closed = false;
-        
-        // Segmentos a lo largo del tubo (al menos 32, o más si hay muchos puntos)
+        curve.tension = 0; // respeta puntos exactos
         const tubularSegments = Math.max(32, vectors.length * 8);
-        const geometry = new THREE.TubeGeometry(curve, tubularSegments, radius, _config.segments, false);
-        
-        // Color según especificación o material
-        let color = 0x71717a; // gris por defecto
-        if (lineData.spec && _catalog && _catalog.getSpec) {
+        const geometry = new THREE.TubeGeometry(curve, tubularSegments, radius, 12, false);
+
+        let color = 0x71717a;
+        if (lineData.spec && _catalog?.getSpec) {
             const spec = _catalog.getSpec(lineData.spec);
-            if (spec && spec.color) color = spec.color;
+            if (spec?.color) color = spec.color;
         } else if (lineData.material) {
             const mat = lineData.material.toUpperCase();
             if (mat.includes('PPR')) color = 0x7c3aed;
@@ -60,292 +49,278 @@ const SmartFlowRouter = (function() {
             else if (mat.includes('HDPE')) color = 0x22c55e;
             else if (mat.includes('PVC')) color = 0xeab308;
         }
-        
-        const material = new THREE.MeshStandardMaterial({
-            color: color,
-            metalness: 0.7,
-            roughness: 0.3,
-            emissive: 0x000000
-        });
-        
+        const material = new THREE.MeshStandardMaterial({ color, metalness: 0.7, roughness: 0.3 });
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.userData = { tag: lineData.tag, type: 'line', diameter: lineData.diameter };
-        mesh.castShadow = true;
-        mesh.receiveShadow = false;
+        mesh.userData = { tag: lineData.tag, type: 'line' };
         return mesh;
     }
-    
-    // ==================== 2. ENRUTAMIENTO ORTOGONAL ====================
-    /**
-     * Calcula una ruta ortogonal entre dos puntos, respetando el orden de ejes prioritario.
-     * Por defecto prioriza X, luego Z, luego Y (horizontal primero, vertical al final).
-     */
+
+    // ------------------------------------------------------------
+    // 2. Enrutamiento ortogonal (prioridad horizontal)
+    // ------------------------------------------------------------
     function calculateRoute(start, end, axisPriority = ['x', 'z', 'y']) {
-        const points = [];
-        points.push(_clonePoint(start));
+        const points = [_clonePoint(start)];
         let current = _clonePoint(start);
-        
-        for (const axis of axisPriority) {
+        for (let axis of axisPriority) {
             if (Math.abs(current[axis] - end[axis]) > 0.1) {
                 current[axis] = end[axis];
                 points.push(_clonePoint(current));
             }
         }
-        
-        // Eliminar puntos duplicados consecutivos (misma posición)
+        // eliminar duplicados consecutivos
         const unique = [];
-        for (let i = 0; i < points.length; i++) {
-            if (i === 0 || _dist(points[i], points[i-1]) > 1) {
-                unique.push(points[i]);
-            }
+        for (let i=0; i<points.length; i++) {
+            if (i===0 || _dist(points[i], points[i-1]) > 1) unique.push(points[i]);
         }
         return unique;
     }
-    
-    // ==================== 3. OBTENER POSICIÓN DE NOZZLE ====================
-    function getNozzlePosition(equipTag, portId) {
-        if (!_core) return null;
-        const db = _core.getDb();
-        const eq = db.equipos.find(e => e.tag === equipTag);
-        if (!eq || !eq.puertos) return null;
-        const port = eq.puertos.find(p => p.id === portId);
-        if (!port) return null;
-        
-        return {
-            x: eq.posX + (port.relX || 0),
-            y: eq.posY + (port.relY || 0),
-            z: eq.posZ + (port.relZ || 0)
-        };
+
+    // ------------------------------------------------------------
+    // 3. Obtener posición absoluta de un puerto (nozzle)
+    // ------------------------------------------------------------
+    function getPortPosition(obj, portId) {
+        if (!obj) return null;
+        if (obj.posX !== undefined) {
+            const port = obj.puertos?.find(p => p.id === portId);
+            if (!port) return null;
+            return {
+                x: obj.posX + (port.relX || 0),
+                y: obj.posY + (port.relY || 0),
+                z: obj.posZ + (port.relZ || 0)
+            };
+        }
+        // Es una línea: puertos virtuales 0 (inicio) o 1 (fin)
+        const pts = obj.points || obj._cachedPoints;
+        if (!pts || pts.length === 0) return null;
+        if (portId === '0') return _clonePoint(pts[0]);
+        if (portId === '1') return _clonePoint(pts[pts.length-1]);
+        return null;
     }
-    
-    // ==================== 4. DIRECCIÓN DE PUERTO (para codos) ====================
-    function getPortDirection(equipTag, portId) {
-        if (!_core) return { dx: 1, dy: 0, dz: 0 };
-        const db = _core.getDb();
-        const eq = db.equipos.find(e => e.tag === equipTag);
-        if (!eq || !eq.puertos) return { dx: 1, dy: 0, dz: 0 };
-        const port = eq.puertos.find(p => p.id === portId);
-        if (port && port.orientacion) return port.orientacion;
-        return { dx: 1, dy: 0, dz: 0 };
+
+    function getPortDirection(obj, portId) {
+        if (!obj) return { dx:1, dy:0, dz:0 };
+        if (obj.posX !== undefined) {
+            const port = obj.puertos?.find(p => p.id === portId);
+            if (port && port.orientacion) return port.orientacion;
+            return { dx:1, dy:0, dz:0 };
+        }
+        const pts = obj.points || obj._cachedPoints;
+        if (pts && pts.length >= 2) {
+            if (portId === '0') return _normalize(_subtract(pts[1], pts[0]));
+            if (portId === '1') return _normalize(_subtract(pts[pts.length-1], pts[pts.length-2]));
+        }
+        return { dx:1, dy:0, dz:0 };
     }
-    
-    // ==================== 5. INSERCIÓN DE ACCESORIOS EN LÍNEA ====================
-    /**
-     * Inserta un accesorio (Tee o reductor) en una línea existente en un punto dado.
-     * Retorna el ID del puerto virtual creado en la línea para conectar una derivación.
-     */
+
+    // ------------------------------------------------------------
+    // 4. Seleccionar codo según material y ángulo
+    // ------------------------------------------------------------
+    function findElbowForLine(material, diameter, angleDeg) {
+        const mat = material.toUpperCase();
+        const is90 = Math.abs(angleDeg-90) < 10;
+        const is45 = Math.abs(angleDeg-45) < 10;
+        if (!is90 && !is45) return null;
+        if (mat.includes('PPR')) return is90 ? 'ELBOW_90_PPR' : 'ELBOW_45_PPR';
+        if (mat.includes('HDPE')) return is90 ? 'ELBOW_90_HDPE' : null;
+        if (mat.includes('PVC')) return is90 ? 'ELBOW_90_PVC' : null;
+        if (mat.includes('ACERO')) return is90 ? 'ELBOW_90_LR_CS' : 'ELBOW_45_CS';
+        if (mat.includes('INOX')) return is90 ? 'ELBOW_90_SANITARY' : null;
+        return is90 ? 'ELBOW_90_LR_CS' : 'ELBOW_45_CS';
+    }
+
+    // ------------------------------------------------------------
+    // 5. Insertar accesorio (tee o reductor) en una línea existente
+    // ------------------------------------------------------------
     function insertarAccesorioEnLinea(lineTag, puntoConexion, diametroNuevaLinea, forzarTee = false) {
-        if (!_core) {
-            _notifyUI("Router: Core no disponible", true);
-            return null;
-        }
         const db = _core.getDb();
-        const line = db.lines.find(l => l.tag === lineTag);
-        if (!line) {
-            _notifyUI(`Router: Línea ${lineTag} no encontrada`, true);
-            return null;
-        }
-        
-        let points = line.points || line._cachedPoints;
-        if (!points || points.length < 2) {
-            _notifyUI(`Router: Línea ${lineTag} sin geometría`, true);
-            return null;
-        }
-        
-        // Encontrar el segmento más cercano al punto de conexión e insertar el punto
-        let minDist = Infinity;
-        let insertIdx = -1;
-        let bestProj = null;
-        
-        for (let i = 0; i < points.length - 1; i++) {
-            const a = points[i];
-            const b = points[i+1];
-            const abx = b.x - a.x;
-            const aby = b.y - a.y;
-            const abz = b.z - a.z;
-            const len2 = abx*abx + aby*aby + abz*abz;
-            if (len2 === 0) continue;
-            
-            const t = ((puntoConexion.x - a.x)*abx + (puntoConexion.y - a.y)*aby + (puntoConexion.z - a.z)*abz) / len2;
+        const linea = db.lines.find(l => l.tag === lineTag);
+        if (!linea) { _notifyUI(`Línea ${lineTag} no encontrada`, true); return null; }
+
+        let pts = linea.points || linea._cachedPoints;
+        if (!pts || pts.length < 2) return null;
+
+        // Encontrar el segmento más cercano e insertar punto
+        let minDist = Infinity, insertIdx = -1;
+        for (let i=0; i<pts.length-1; i++) {
+            const a = pts[i], b = pts[i+1];
+            const ab = _subtract(b, a);
+            const ap = _subtract(puntoConexion, a);
+            const t = _dot(ap, ab) / (ab.x*ab.x + ab.y*ab.y + ab.z*ab.z || 1);
             if (t >= 0 && t <= 1) {
-                const proj = {
-                    x: a.x + t * abx,
-                    y: a.y + t * aby,
-                    z: a.z + t * abz
-                };
+                const proj = { x: a.x + t*ab.x, y: a.y + t*ab.y, z: a.z + t*ab.z };
                 const d = _dist(puntoConexion, proj);
-                if (d < minDist) {
-                    minDist = d;
-                    insertIdx = i + 1;
-                    bestProj = proj;
+                if (d < minDist) { minDist = d; insertIdx = i+1; }
+            }
+        }
+        if (insertIdx === -1) return null;
+        pts.splice(insertIdx, 0, puntoConexion);
+
+        const diamLinea = linea.diameter || 4;
+        const diffDiam = Math.abs(diametroNuevaLinea - diamLinea) > 0.1;
+        const esExtremo = !forzarTee && ((insertIdx===1 && _dist(pts[0], puntoConexion)<1) || (insertIdx===pts.length-2 && _dist(pts[pts.length-1], puntoConexion)<1));
+        let tipoAccesorio = 'TEE_EQUAL';
+        if (esExtremo && diffDiam) tipoAccesorio = 'CONCENTRIC_REDUCER';
+        else if (diffDiam) tipoAccesorio = 'TEE_REDUCING';
+
+        const compEnCatalogo = _catalog.getComponent(tipoAccesorio);
+        if (!compEnCatalogo) { _notifyUI(`Accesorio ${tipoAccesorio} no encontrado`, true); return null; }
+
+        const compTag = `${tipoAccesorio}-${Date.now().slice(-6)}`;
+        const param = insertIdx / (pts.length-1);
+        linea.components = linea.components || [];
+        linea.components.push({ type: compEnCatalogo.tipo, tag: compTag, param });
+        _core.updateLine(lineTag, { points: pts, _cachedPoints: pts, components: linea.components });
+
+        // Generar puerto virtual para conexión
+        const puertoId = `ACC-${compTag}`;
+        const ref = pts[0];
+        linea.puertos = linea.puertos || [];
+        linea.puertos.push({
+            id: puertoId, label: 'Derivación',
+            relX: puntoConexion.x - ref.x, relY: puntoConexion.y - ref.y, relZ: puntoConexion.z - ref.z,
+            diametro: diametroNuevaLinea, status: 'open'
+        });
+        _core.updateLine(lineTag, { puertos: linea.puertos });
+        _notifyUI(`Accesorio ${compEnCatalogo.nombre} insertado en ${lineTag}`, false);
+        return puertoId;
+    }
+
+    // ------------------------------------------------------------
+    // 6. Enrutamiento entre dos puertos (con auto‑codos y reductores)
+    // ------------------------------------------------------------
+    function routeBetweenPorts(fromTag, fromPort, toTag, toPort, diameter = 4, material = 'PPR', spec = 'PPR_PN12_5') {
+        const db = _core.getDb();
+        const fromObj = db.equipos.find(e => e.tag === fromTag) || db.lines.find(l => l.tag === fromTag);
+        let toObj = db.equipos.find(e => e.tag === toTag) || db.lines.find(l => l.tag === toTag);
+        if (!fromObj || !toObj) { _notifyUI("Origen o destino no encontrado", true); return null; }
+
+        let startPos = getPortPosition(fromObj, fromPort);
+        if (!startPos) { _notifyUI(`Puerto origen ${fromPort} no encontrado`, true); return null; }
+
+        let endPos = null;
+        let nuevoPuertoId = toPort;
+        let reductorComponent = null;
+
+        // Si el destino es una línea y no se especificó puerto o se pide conexión a punto intermedio
+        if (toObj.points || toObj._cachedPoints) {
+            const pts = toObj.points || toObj._cachedPoints;
+            if (!pts || pts.length < 2) { _notifyUI("Línea destino sin geometría", true); return null; }
+
+            if (!toPort || toPort === '') {
+                // Buscar el punto más cercano de la línea
+                let minDist = Infinity, bestPoint = null;
+                for (let i=0; i<pts.length-1; i++) {
+                    const a=pts[i], b=pts[i+1];
+                    const ab=_subtract(b,a), ap=_subtract(startPos,a);
+                    const t = _dot(ap,ab) / (ab.x*ab.x+ab.y*ab.y+ab.z*ab.z || 1);
+                    if (t>=0 && t<=1) {
+                        const proj = { x: a.x + t*ab.x, y: a.y + t*ab.y, z: a.z + t*ab.z };
+                        const d = _dist(startPos, proj);
+                        if (d < minDist) { minDist = d; bestPoint = proj; }
+                    }
+                }
+                if (!bestPoint) { _notifyUI("No se pudo encontrar punto de conexión", true); return null; }
+                const puertoId = insertarAccesorioEnLinea(toTag, bestPoint, diameter, true);
+                if (!puertoId) return null;
+                nuevoPuertoId = puertoId;
+                toObj = db.lines.find(l => l.tag === toTag);
+            } else {
+                let puntoConexion = getPortPosition(toObj, toPort);
+                if (!puntoConexion) { _notifyUI("Puerto destino no válido", true); return null; }
+                const esExtremo = (toPort === '0' || toPort === '1');
+                const diffDiam = Math.abs(diameter - (toObj.diameter || 4)) > 0.1;
+                if (esExtremo && !diffDiam) {
+                    nuevoPuertoId = toPort;
+                } else if (esExtremo && diffDiam) {
+                    const puertoId = insertarAccesorioEnLinea(toTag, puntoConexion, diameter, false);
+                    if (puertoId) { nuevoPuertoId = puertoId; toObj = db.lines.find(l => l.tag === toTag); }
+                    else {
+                        const reductorId = (material.toUpperCase().includes('PPR')) ? 'CONCENTRIC_REDUCER_PPR' : 'CONCENTRIC_REDUCER_CS';
+                        reductorComponent = { type: reductorId, tag: `${reductorId}-${Date.now().slice(-6)}`, param: 1.0 };
+                        _notifyUI(`No se insertó reductor en ${toTag}, se añadirá a la nueva línea`, false);
+                        nuevoPuertoId = toPort;
+                    }
+                } else {
+                    const puertoId = insertarAccesorioEnLinea(toTag, puntoConexion, diameter, esExtremo ? false : true);
+                    if (!puertoId) return null;
+                    nuevoPuertoId = puertoId;
+                    toObj = db.lines.find(l => l.tag === toTag);
                 }
             }
         }
-        
-        if (insertIdx === -1 || !bestProj) {
-            _notifyUI(`Router: No se pudo insertar accesorio en ${lineTag} - punto fuera de la línea`, true);
-            return null;
-        }
-        
-        // Insertar el punto en la línea
-        points.splice(insertIdx, 0, bestProj);
-        
-        // Determinar tipo de accesorio
-        const diamLinea = line.diameter || 4;
-        const diffDiam = Math.abs(diametroNuevaLinea - diamLinea) > 0.1;
-        const esExtremo = (insertIdx === 0 || insertIdx === points.length - 1);
-        const tipoAccesorio = (forzarTee || (!esExtremo && diffDiam)) ? 'TEE_REDUCING' : (esExtremo && diffDiam) ? 'CONCENTRIC_REDUCER' : 'TEE_EQUAL';
-        
-        // Buscar el componente en el catálogo
-        let compEnCatalogo = null;
-        if (_catalog) {
-            const allTypes = _catalog.listComponentTypes();
-            if (tipoAccesorio === 'TEE_EQUAL') {
-                compEnCatalogo = allTypes.find(t => t.includes('TEE_EQUAL') && !t.includes('REDUCING')) || 'TEE_EQUAL_CS';
-            } else if (tipoAccesorio === 'TEE_REDUCING') {
-                compEnCatalogo = allTypes.find(t => t.includes('TEE_REDUCING')) || 'TEE_REDUCING_CS';
-            } else {
-                compEnCatalogo = allTypes.find(t => t.includes('CONCENTRIC_REDUCER')) || 'CONCENTRIC_REDUCER_CS';
-            }
-        }
-        if (!compEnCatalogo) {
-            _notifyUI(`Router: No se encontró componente ${tipoAccesorio} en el catálogo`, true);
-            return null;
-        }
-        
-        // Registrar el componente en la línea
-        const param = insertIdx / (points.length - 1);
-        const compTag = `${compEnCatalogo}-${Date.now()}`;
-        line.components = line.components || [];
-        line.components.push({
-            type: compEnCatalogo,
-            tag: compTag,
-            param: param,
-            description: `${tipoAccesorio} insertado en ${lineTag}`
-        });
-        
-        // Crear puerto virtual en la línea para conectar derivación
-        const puertoId = `ACC-${compTag}`;
-        const refPoint = points[0] || { x: 0, y: 0, z: 0 };
-        line.puertos = line.puertos || [];
-        line.puertos.push({
-            id: puertoId,
-            label: 'Derivación',
-            relX: bestProj.x - refPoint.x,
-            relY: bestProj.y - refPoint.y,
-            relZ: bestProj.z - refPoint.z,
-            diametro: diametroNuevaLinea,
-            status: 'open',
-            orientacion: { dx: 0, dy: 1, dz: 0 } // dirección por defecto
-        });
-        
-        // Actualizar la línea en el Core (regenerará la malla)
-        _core.updateLine(lineTag, { points: points, _cachedPoints: points, components: line.components, puertos: line.puertos });
-        
-        _notifyUI(`✅ Accesorio ${tipoAccesorio} (${compEnCatalogo}) insertado en ${lineTag}`, false);
-        return puertoId;
-    }
-    
-    // ==================== 6. ENRUTAMIENTO ENTRE PUERTOS (COMANDO ROUTE) ====================
-    function routeBetweenPorts(fromEquipTag, fromPortId, toEquipTag, toPortId, diameter = 4, material = 'PPR', spec = 'PPR_PN12_5') {
-        if (!_core) {
-            _notifyUI("Router: Core no inicializado", true);
-            return null;
-        }
-        
-        const startPos = getNozzlePosition(fromEquipTag, fromPortId);
-        const endPos = getNozzlePosition(toEquipTag, toPortId);
-        if (!startPos || !endPos) {
-            _notifyUI("Router: No se pudieron obtener las posiciones de los puertos", true);
-            return null;
-        }
-        
-        // Calcular ruta ortogonal (prioridad X, Z, Y para tuberías horizontales primero)
+        endPos = getPortPosition(toObj, nuevoPuertoId);
+        if (!endPos) { _notifyUI("No se pudo obtener posición destino", true); return null; }
+
+        // Herencia de diámetro/material/spec del destino si no se especificaron
+        if (toObj.diameter && !diameter) diameter = toObj.diameter;
+        const materialFinal = material || toObj.material || 'PPR';
+        const specFinal = spec || toObj.spec || 'PPR_PN12_5';
+
+        // Calcular ruta ortogonal
         const points = calculateRoute(startPos, endPos, ['x', 'z', 'y']);
-        
-        // Generar tag único
-        const db = _core.getDb();
-        const tag = `L-${db.lines.length + 1}`;
-        
+        const newTag = `L-${db.lines.length+1}`;
         const newLine = {
-            tag: tag,
-            diameter: diameter,
-            material: material,
-            spec: spec,
-            points: points,
-            _cachedPoints: points,
-            waypoints: points.slice(1, -1),
-            origin: { objType: 'equipment', equipTag: fromEquipTag, portId: fromPortId },
-            destination: { objType: 'equipment', equipTag: toEquipTag, portId: toPortId },
+            tag: newTag, diameter, material: materialFinal, spec: specFinal,
+            points, _cachedPoints: points, waypoints: points.slice(1,-1),
+            origin: { objType: fromObj.posX!==undefined ? 'equipment' : 'line', equipTag: fromTag, portId: fromPort },
+            destination: { objType: toObj.posX!==undefined ? 'equipment' : 'line', equipTag: toTag, portId: nuevoPuertoId },
             components: []
         };
-        
-        // Añadir la línea al Core (esto generará la malla visual)
+
+        // Auto‑codo en origen (si es línea)
+        if (fromObj.points || fromObj._cachedPoints) {
+            const fromDir = getPortDirection(fromObj, fromPort);
+            const firstSeg = _normalize(_subtract(points[1], startPos));
+            const angleRad = Math.acos(Math.min(1, Math.abs(_dot(fromDir, firstSeg))));
+            const angleDeg = angleRad * 180 / Math.PI;
+            if (angleDeg > 15) {
+                const elbowId = findElbowForLine(materialFinal, diameter, angleDeg);
+                if (elbowId) newLine.components.push({ type: elbowId, tag: `${elbowId}-${Date.now().slice(-6)}`, param: 0.0 });
+            }
+        }
+        // Auto‑codo en destino (si es línea)
+        if (toObj.points || toObj._cachedPoints) {
+            const toDir = getPortDirection(toObj, nuevoPuertoId);
+            const lastSeg = _normalize(_subtract(endPos, points[points.length-2]));
+            const angleRad = Math.acos(Math.min(1, Math.abs(_dot(toDir, lastSeg))));
+            const angleDeg = angleRad * 180 / Math.PI;
+            if (angleDeg > 15) {
+                const elbowId = findElbowForLine(materialFinal, diameter, angleDeg);
+                if (elbowId) newLine.components.push({ type: elbowId, tag: `${elbowId}-${Date.now().slice(-6)}`, param: 1.0 });
+            }
+        }
+
+        if (reductorComponent) newLine.components.push(reductorComponent);
+
         _core.addLine(newLine);
-        
         // Marcar puertos como conectados
-        const fromEq = db.equipos.find(e => e.tag === fromEquipTag);
-        if (fromEq) {
-            const port = fromEq.puertos.find(p => p.id === fromPortId);
-            if (port) port.connectedLine = tag;
-        }
-        const toEq = db.equipos.find(e => e.tag === toEquipTag);
-        if (toEq) {
-            const port = toEq.puertos.find(p => p.id === toPortId);
-            if (port) port.connectedLine = tag;
-        }
-        
-        _notifyUI(`✅ Ruta creada: ${tag} (${fromEquipTag}.${fromPortId} → ${toEquipTag}.${toPortId})`, false);
+        const fromPortObj = fromObj.puertos?.find(p=>p.id===fromPort);
+        if (fromPortObj) fromPortObj.connectedLine = newTag;
+        const toPortObj = toObj.puertos?.find(p=>p.id===nuevoPuertoId);
+        if (toPortObj) toPortObj.connectedLine = newTag;
+
+        _core.syncPhysicalData(); _core._saveState();
+        _notifyUI(`✅ Ruta ${newTag} creada (${fromTag}.${fromPort} → ${toTag}.${nuevoPuertoId})`, false);
         return newLine;
     }
-    
-    // ==================== 7. DETECCIÓN DE INTERSECCIONES (placeholder) ====================
+
+    // ------------------------------------------------------------
+    // 7. Procesar intersecciones automáticas (placeholder)
+    // ------------------------------------------------------------
     function procesarInterseccionesDeLinea(nuevaLinea) {
-        // En versión futura: buscar líneas existentes que crucen y crear conexiones automáticas
-        _notifyUI(`Intersecciones de ${nuevaLinea.tag} procesadas (pendiente implementación completa)`, false);
+        // Puedes implementar detección de cruces con otras líneas aquí
     }
-    
-    // ==================== 8. OBTENER COMPONENTE CODO SEGÚN MATERIAL ====================
-    function findElbowForLine(material, diameter, angleDeg) {
-        const mat = material.toUpperCase();
-        const is90 = Math.abs(angleDeg - 90) < 15;
-        const is45 = Math.abs(angleDeg - 45) < 15;
-        if (!is90 && !is45) return null;
-        
-        if (!_catalog) return null;
-        const allTypes = _catalog.listComponentTypes();
-        
-        if (mat.includes('PPR')) {
-            const target = is90 ? 'ELBOW_90_PPR' : 'ELBOW_45_PPR';
-            return allTypes.includes(target) ? target : null;
-        } else if (mat.includes('HDPE')) {
-            return is90 ? (allTypes.includes('ELBOW_90_HDPE') ? 'ELBOW_90_HDPE' : null) : null;
-        } else if (mat.includes('PVC')) {
-            return is90 ? (allTypes.includes('ELBOW_90_PVC') ? 'ELBOW_90_PVC' : null) : null;
-        } else if (mat.includes('ACERO') || mat.includes('INOX')) {
-            return is90 ? (allTypes.includes('ELBOW_90_LR_CS') ? 'ELBOW_90_LR_CS' : null) : (allTypes.includes('ELBOW_45_CS') ? 'ELBOW_45_CS' : null);
-        }
-        return is90 ? (allTypes.includes('ELBOW_90_LR_CS') ? 'ELBOW_90_LR_CS' : null) : null;
+
+    // ------------------------------------------------------------
+    // 8. Inicialización
+    // ------------------------------------------------------------
+    function init(core, catalog, notifyFn) {
+        _core = core; _catalog = catalog; if (notifyFn) _notifyUI = notifyFn;
+        console.log("✅ Router v6.2 listo (auto-codos, reductores, herencia)");
     }
-    
-    // ==================== 9. INICIALIZACIÓN ====================
-    function init(coreInstance, catalogInstance, notifyFn) {
-        _core = coreInstance;
-        _catalog = catalogInstance;
-        if (notifyFn) _notifyUI = notifyFn;
-        console.log("✔ SmartFlowRouter v6.1 inicializado (Volumetric Generator)");
-    }
-    
-    // API pública
+
     return {
-        init,
-        createLineMesh,
-        calculateRoute,
-        getNozzlePosition,
-        getPortDirection,
-        routeBetweenPorts,
-        insertarAccesorioEnLinea,
-        procesarInterseccionesDeLinea,
-        findElbowForLine
+        init, createLineMesh, calculateRoute, getPortPosition, getPortDirection,
+        routeBetweenPorts, insertarAccesorioEnLinea, procesarInterseccionesDeLinea
     };
 })();
