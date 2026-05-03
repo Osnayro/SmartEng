@@ -1,5 +1,5 @@
 
-// SmartFlowCommands v9.7 – Soporte completo para parámetros con paréntesis
+// SmartFlowCommands v9.7.1 – Tokenizador arreglado para parámetros con paréntesis
 const SmartFlowCommands = (function() {
     let _core = null;
     let _catalog = null;
@@ -68,11 +68,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
-    // Tokenizador mejorado: captura parámetros con paréntesis como un solo token
+    // Tokenizador corregido: primero captura "clave=(...)", luego paréntesis sueltos
     function tokenize(cmd) {
         const tokens = [];
-        // Ahora incluye \w+=\s*\([^)]+\) para capturar pos=(0,-1300,0) o dir=(0,0,1)
-        const regex = /\w+=\s*\([^)]+\)|\([^)]+\)|->|@|[\w\-\.=]+|[<>+\-~%!?.]+/g;
+        const regex = /\w+=\s*\([^)]+\)|->|@|\([^)]+\)|[\w\-\.=]+|[<>+\-~%!?.]+/g;
         let match;
         while ((match = regex.exec(cmd)) !== null) {
             tokens.push(match[0]);
@@ -106,7 +105,7 @@ const SmartFlowCommands = (function() {
             if (m) { p.spacing = parseFloat(m[1]); continue; }
             m = t.match(/^(?:out|salida|output)[=:](\w+)/i);
             if (m) { p.salida = m[1]; continue; }
-            // El token ya viene como "pos=(0,-1300,0)" o "dir=(0,0,1)"
+            // Ahora el token es "pos=(0,-1300,0)" o "dir=(0,0,1)"
             m = t.match(/^pos[=:]\s*\(?\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*\)?/i);
             if (m) { p.pos = { x: parseFloat(m[1]), y: parseFloat(m[2]), z: parseFloat(m[3]) }; continue; }
             m = t.match(/^dir[=:]\s*\(?\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*\)?/i);
@@ -278,11 +277,9 @@ const SmartFlowCommands = (function() {
             }
             case 'SUMMARY': return resumen();
         }
-
         return false;
     }
 
-    // ----- HANDLERS (se mantienen idénticos a v9.6, solo se actualiza tokenize) -----
     function handleCreateEquipo(tokens) {
         if (!dependenciesReady()) return true;
         const enIdx = tokens.findIndex(t => t.toLowerCase() === 'en' || t.toLowerCase() === 'at');
@@ -888,7 +885,7 @@ const SmartFlowCommands = (function() {
         _core = coreInstance || null;
         _catalog = catalogInstance || null;
         _notifyUI = notifyFn || console.log;
-        console.log("Commands v9.7 inicializado (parámetros con paréntesis soportados)");
+        console.log("Commands v9.7.1 listo (tokenizador con paréntesis corregido)");
     }
 
     return { init, executeCommand, executeBatch };
