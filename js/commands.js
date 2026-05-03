@@ -1,11 +1,10 @@
 
-// SmartFlowCommands v9.6 – Soporte completo de referencias con @ (punto intermedio)
+// SmartFlowCommands v9.7 – Soporte completo para parámetros con paréntesis
 const SmartFlowCommands = (function() {
     let _core = null;
     let _catalog = null;
     let _notifyUI = (msg, isErr) => console.log(msg);
 
-    // Diccionario bilingüe
     const LEX = {
         'crear': 'CREATE', 'create': 'CREATE', '+': 'CREATE',
         'modificar': 'MODIFY', 'editar': 'MODIFY', 'edit': 'MODIFY', '~': 'MODIFY',
@@ -69,9 +68,11 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // Tokenizador mejorado: captura parámetros con paréntesis como un solo token
     function tokenize(cmd) {
         const tokens = [];
-        const regex = /(\([^)]+\)|->|@|[\w\-\.=]+|[<>+\-~%!?.]+)/g;
+        // Ahora incluye \w+=\s*\([^)]+\) para capturar pos=(0,-1300,0) o dir=(0,0,1)
+        const regex = /\w+=\s*\([^)]+\)|\([^)]+\)|->|@|[\w\-\.=]+|[<>+\-~%!?.]+/g;
         let match;
         while ((match = regex.exec(cmd)) !== null) {
             tokens.push(match[0]);
@@ -105,9 +106,10 @@ const SmartFlowCommands = (function() {
             if (m) { p.spacing = parseFloat(m[1]); continue; }
             m = t.match(/^(?:out|salida|output)[=:](\w+)/i);
             if (m) { p.salida = m[1]; continue; }
-            m = t.match(/^pos[=:]\(?\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*\)?/i);
+            // El token ya viene como "pos=(0,-1300,0)" o "dir=(0,0,1)"
+            m = t.match(/^pos[=:]\s*\(?\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*\)?/i);
             if (m) { p.pos = { x: parseFloat(m[1]), y: parseFloat(m[2]), z: parseFloat(m[3]) }; continue; }
-            m = t.match(/^dir[=:]\(?\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*\)?/i);
+            m = t.match(/^dir[=:]\s*\(?\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*[, ]\s*(-?\d+\.?\d*)\s*\)?/i);
             if (m) { p.dir = { dx: parseFloat(m[1]), dy: parseFloat(m[2]), dz: parseFloat(m[3]) }; continue; }
             if (t.match(/^status[=:](\w+)/i)) { p.status = RegExp.$1.toLowerCase(); continue; }
         }
@@ -174,7 +176,6 @@ const SmartFlowCommands = (function() {
         return lineObj;
     }
 
-    // ==================== EJECUCIÓN PRINCIPAL ====================
     function executeCommand(cmd) {
         if (!cmd || cmd.startsWith('//')) return false;
         const tokens = tokenize(cmd);
@@ -182,7 +183,6 @@ const SmartFlowCommands = (function() {
 
         if (!dependenciesReady()) return true;
 
-        // Detectar enlaces de conexión (->, a, to)
         let arrowIdx = tokens.indexOf('->');
         if (arrowIdx < 0) {
             const aIdx = tokens.findIndex(t => t.toLowerCase() === 'a' || t.toLowerCase() === 'to');
@@ -213,7 +213,6 @@ const SmartFlowCommands = (function() {
             case 'DELETE': return handleDelete(tokens);
             case 'MOVE': return handleMove(tokens);
             case 'CONNECT':
-                // Si no se detectó 'a' o '->', intentar formato directo
                 if (tokens && tokens.length >= 3) {
                     const left = tokens[1];
                     const right = tokens.slice(2).join('');
@@ -283,7 +282,7 @@ const SmartFlowCommands = (function() {
         return false;
     }
 
-    // -------------------- HANDLERS --------------------
+    // ----- HANDLERS (se mantienen idénticos a v9.6, solo se actualiza tokenize) -----
     function handleCreateEquipo(tokens) {
         if (!dependenciesReady()) return true;
         const enIdx = tokens.findIndex(t => t.toLowerCase() === 'en' || t.toLowerCase() === 'at');
@@ -398,7 +397,6 @@ const SmartFlowCommands = (function() {
 
         const tag = tokens[1];
 
-        // Reconstruir referencias con '@'
         let desdeToken = tokens[desdeIdx + 1];
         if (tokens[desdeIdx + 2] === '@') {
             desdeToken += '@' + tokens[desdeIdx + 3];
@@ -488,7 +486,7 @@ const SmartFlowCommands = (function() {
 
     function handleModify(tokens) {
         if (!dependenciesReady()) return true;
-        if (tokens.length < 3) { notify('Uso: modificar TAG [prop=valor] o modificar TAG.PUERTO [pos=x,y,z] [dir=dx,dy,dz] [diam=4]', true); return true; }
+        if (tokens.length < 3) { notify('Uso: modificar TAG [prop=valor] o modificar TAG.PUERTO [pos=(x,y,z)] [dir=(dx,dy,dz)] [diam=4]', true); return true; }
         const tagOrRef = tokens[1];
         const dotIdx = tagOrRef.indexOf('.');
         if (dotIdx > 0) {
@@ -584,7 +582,6 @@ const SmartFlowCommands = (function() {
         const rightSide = tokens.slice(arrowIdx + 1);
         if (!rightSide.length) { notify('Falta destino después de la palabra de enlace', true); return true; }
 
-        // Reconstruir referencia con '@' si está separada
         let rightStr = rightSide[0];
         if (rightSide.length > 1 && rightSide[1] === '@') {
             rightStr = rightSide[0] + '@' + (rightSide[2] || '');
@@ -693,7 +690,6 @@ const SmartFlowCommands = (function() {
                 return true;
             }
 
-            // Reconstruir referencia si el tokenizador separó '@'
             let ref = tokens[1];
             const atIndex = tokens.indexOf('@');
             if (atIndex > 0 && atIndex < tokens.length - 1) {
@@ -724,7 +720,6 @@ const SmartFlowCommands = (function() {
 
             let coords = null;
             if (obj.posX !== undefined) {
-                // Equipo
                 const port = obj.puertos?.find(p => p.id === portOrPos);
                 if (!port) {
                     notify(`Puerto ${portOrPos} no encontrado en ${tag}`, true);
@@ -736,7 +731,6 @@ const SmartFlowCommands = (function() {
                     z: (obj.posZ || 0) + (port.relZ || 0)
                 };
             } else {
-                // Línea
                 const pts = obj.points || obj._cachedPoints;
                 if (!pts || pts.length < 2) {
                     notify(`Línea ${tag} sin geometría`, true);
@@ -864,7 +858,7 @@ const SmartFlowCommands = (function() {
             '  EQP1.PUERTO1 a LINEA@0.5',
             'MODIFICAR:',
             '  modificar TAG d=3000 m=HDPE',
-            '  modificar TAG.PUERTO pos=500,200,0 dir=0,1,0 diam=4 status=open',
+            '  modificar TAG.PUERTO pos=(x,y,z) dir=(dx,dy,dz) diam=4 status=open',
             'MOVER:',
             '  mover TAG a X,Y,Z',
             'ELIMINAR: eliminar TAG',
@@ -894,7 +888,7 @@ const SmartFlowCommands = (function() {
         _core = coreInstance || null;
         _catalog = catalogInstance || null;
         _notifyUI = notifyFn || console.log;
-        console.log("Commands v9.6 inicializado (soporte completo de @)");
+        console.log("Commands v9.7 inicializado (parámetros con paréntesis soportados)");
     }
 
     return { init, executeCommand, executeBatch };
