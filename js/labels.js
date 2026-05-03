@@ -1,5 +1,6 @@
 
-// SmartFlowLabels v1.7 – Etiquetas completas con protección
+
+// SmartFlowLabels v1.8 – Optimizado para visibilidad en iPhone
 const SmartFlowLabels = (function() {
     let _core = null;
     let _scene = null;
@@ -20,20 +21,35 @@ const SmartFlowLabels = (function() {
         padding: '2px 8px'
     };
 
-    function _status(msg, color = '#00f2ff') {
+    // Muestra mensaje en la barra de estado de la aplicación
+    function _status(msg, isError = false) {
         var el = document.getElementById('statusMsg');
         if (el) {
             el.innerText = 'Labels: ' + msg;
-            el.style.color = color;
+            el.style.color = isError ? '#ff4444' : '#00f2ff';
         }
+        if (isError) console.error('Labels:', msg);
+        else console.log('Labels:', msg);
     }
 
+    // Verifica soporte de CSS2D
     function _css2dSupported() {
-        return typeof THREE !== 'undefined' &&
-               typeof THREE.CSS2DRenderer === 'function' &&
-               typeof THREE.CSS2DObject === 'function';
+        if (typeof THREE === 'undefined') {
+            _status('Three.js no está cargado', true);
+            return false;
+        }
+        if (typeof THREE.CSS2DRenderer !== 'function') {
+            _status('CSS2DRenderer no disponible (CDN incompleto)', true);
+            return false;
+        }
+        if (typeof THREE.CSS2DObject !== 'function') {
+            _status('CSS2DObject no disponible', true);
+            return false;
+        }
+        return true;
     }
 
+    // Crea una línea conectora 3D (dashed)
     function createConnectorLine(start, end) {
         if (!_css2dSupported() || !_scene) return null;
         try {
@@ -48,11 +64,12 @@ const SmartFlowLabels = (function() {
             line.computeLineDistances();
             return line;
         } catch (e) {
-            _status('Error línea conectora: ' + e.message, '#ff4444');
+            _status('Error línea conectora: ' + e.message, true);
             return null;
         }
     }
 
+    // Crea una etiqueta CSS2D
     function createLabel(text, position) {
         if (!_css2dSupported() || !_scene) return null;
         try {
@@ -74,11 +91,12 @@ const SmartFlowLabels = (function() {
             label.position.copy(position);
             return label;
         } catch (e) {
-            _status('Error etiqueta: ' + e.message, '#ff4444');
+            _status('Error creando etiqueta: ' + e.message, true);
             return null;
         }
     }
 
+    // Datos de etiqueta para un equipo
     function getEquipmentLabelData(eq) {
         var anchor = new THREE.Vector3(eq.posX, eq.posY, eq.posZ);
         var offset = _config.offset.clone();
@@ -87,7 +105,9 @@ const SmartFlowLabels = (function() {
             var diam = eq.diametro || 0;
             var alt = eq.altura || 0;
             text += '\n\u2300' + diam + 'mm H=' + alt + 'mm';
+            // Colocar el ancla en la parte superior del equipo
             anchor = new THREE.Vector3(eq.posX, eq.posY + alt/2, eq.posZ);
+            // Desplazar la etiqueta hacia un lado para que no se solape con la geometría
             offset = new THREE.Vector3(300, 300, 0);
         } else if (eq.tipo === 'bomba') {
             var alto = eq.altura || 800;
@@ -99,6 +119,7 @@ const SmartFlowLabels = (function() {
         return { anchor: anchor, endPoint: endPoint, text: text };
     }
 
+    // Datos de etiqueta para una línea
     function getLineLabelData(line) {
         var pts = line.points || line._cachedPoints;
         if (!pts || pts.length < 2) return null;
@@ -117,6 +138,7 @@ const SmartFlowLabels = (function() {
         return { anchor: mid, endPoint: endPoint, text: text };
     }
 
+    // Elimina de forma segura un objeto (para evitar errores en iOS)
     function _safeRemove(obj) {
         if (!obj) return;
         try {
@@ -126,10 +148,11 @@ const SmartFlowLabels = (function() {
                 obj.parent.remove(obj);
             }
         } catch (e) {
-            _status('Error removiendo: ' + e.message, '#ff4444');
+            _status('Error removiendo: ' + e.message, true);
         }
     }
 
+    // Elimina la etiqueta correspondiente a un tag
     function removeLabelForTag(tag) {
         if (!_itemsMap.has(tag)) return;
         var item = _itemsMap.get(tag);
@@ -138,6 +161,7 @@ const SmartFlowLabels = (function() {
         _itemsMap.delete(tag);
     }
 
+    // Actualiza (o crea) la etiqueta para un objeto
     function updateLabelForObject(obj) {
         if (!obj || !obj.tag) return;
         var data;
@@ -150,6 +174,7 @@ const SmartFlowLabels = (function() {
             removeLabelForTag(obj.tag);
             return;
         }
+        // Eliminar etiqueta anterior
         removeLabelForTag(obj.tag);
         var line = createConnectorLine(data.anchor, data.endPoint);
         var label = createLabel(data.text, data.endPoint);
@@ -159,6 +184,7 @@ const SmartFlowLabels = (function() {
         _itemsMap.set(obj.tag, { line: line, label: label });
     }
 
+    // Reconstruye todas las etiquetas de la escena
     function updateAllLabels() {
         if (!_core || !_scene) return;
         var db = _core.getDb();
@@ -172,38 +198,45 @@ const SmartFlowLabels = (function() {
             currentTags[line.tag] = true;
             updateLabelForObject(line);
         });
-        // Limpiar etiquetas de objetos eliminados
-        var tags = Object.keys(currentTags);
+        // Eliminar etiquetas de objetos que ya no existen
         _itemsMap.forEach(function(item, tag) {
             if (!currentTags[tag]) {
                 removeLabelForTag(tag);
             }
         });
+        _status('Actualizadas ' + _itemsMap.size + ' etiquetas');
     }
 
+    // Inicialización del módulo
     function init(coreInstance) {
         _core = coreInstance;
         _scene = _core.getScene();
         if (!_scene) {
-            _status('Escena no disponible', '#ff4444');
+            _status('Escena no disponible', true);
             return;
         }
         if (!_css2dSupported()) {
-            _status('CSS2DRenderer no soportado', '#ff4444');
+            _status('CSS2D no soportado', true);
             return;
         }
         var container = document.getElementById('canvas-container');
         if (!container) {
-            _status('canvas-container no encontrado', '#ff4444');
+            _status('canvas-container no encontrado', true);
             return;
         }
+
+        // Crear el renderizador CSS2D
         _labelRenderer = new THREE.CSS2DRenderer();
         _labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        // ESTILOS CRÍTICOS para visibilidad en iPhone
         _labelRenderer.domElement.style.position = 'absolute';
         _labelRenderer.domElement.style.top = '0px';
+        _labelRenderer.domElement.style.left = '0px';
+        _labelRenderer.domElement.style.zIndex = '10'; // ¡Forzar por encima del canvas 3D!
         _labelRenderer.domElement.style.pointerEvents = 'none';
         container.appendChild(_labelRenderer.domElement);
 
+        // Enganchar el bucle de animación para renderizar las etiquetas
         var originalAnimate = _core.getAnimate();
         if (originalAnimate) {
             var newAnimate = function() {
@@ -215,27 +248,22 @@ const SmartFlowLabels = (function() {
             _core.setAnimate(newAnimate);
         }
 
+        // Actualizar etiquetas cuando cambie la base de datos
         _core.subscribe(function() {
             updateAllLabels();
         });
 
+        // Actualización inicial
         updateAllLabels();
+
         window.addEventListener('resize', function() {
-            if (_labelRenderer) _labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            if (_labelRenderer) {
+                _labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            }
         });
 
-        _status('Etiquetas activas (' + _itemsMap.size + ')', '#00ff00');
+        _status('Etiquetas activas y visibles (' + _itemsMap.size + ')', false);
     }
 
     return { init: init };
 })();
-```
-
----
-
-Paso 2: Verifica la llamada en main.js
-
-Busca la función initModules dentro de main.js. Asegúrate de que exista la siguiente línea:
-
-```javascript
-if (typeof SmartFlowLabels !== 'undefined') SmartFlowLabels.init(SmartFlowCore);
