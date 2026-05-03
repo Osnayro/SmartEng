@@ -1,4 +1,5 @@
-// SmartFlowCommands v9.5 - Seguro contra dependencias no inicializadas + comando "punto"
+
+// SmartFlowCommands v9.6 – Soporte completo de referencias con @ (punto intermedio)
 const SmartFlowCommands = (function() {
     let _core = null;
     let _catalog = null;
@@ -60,7 +61,6 @@ const SmartFlowCommands = (function() {
         }
     }
 
-    // Verifica que las dependencias estén listas
     function dependenciesReady() {
         if (!_core || !_catalog) {
             notify('Sistema no inicializado. Espera unos segundos.', true);
@@ -180,10 +180,9 @@ const SmartFlowCommands = (function() {
         const tokens = tokenize(cmd);
         if (!tokens || !tokens.length) return false;
 
-        // Verificar dependencias
         if (!dependenciesReady()) return true;
 
-        // Detectar flecha para conexión (compatibilidad)
+        // Detectar enlaces de conexión (->, a, to)
         let arrowIdx = tokens.indexOf('->');
         if (arrowIdx < 0) {
             const aIdx = tokens.findIndex(t => t.toLowerCase() === 'a' || t.toLowerCase() === 'to');
@@ -214,6 +213,7 @@ const SmartFlowCommands = (function() {
             case 'DELETE': return handleDelete(tokens);
             case 'MOVE': return handleMove(tokens);
             case 'CONNECT':
+                // Si no se detectó 'a' o '->', intentar formato directo
                 if (tokens && tokens.length >= 3) {
                     const left = tokens[1];
                     const right = tokens.slice(2).join('');
@@ -283,7 +283,7 @@ const SmartFlowCommands = (function() {
         return false;
     }
 
-    // -------------------- HANDLERS (con verificación de dependencias) --------------------
+    // -------------------- HANDLERS --------------------
     function handleCreateEquipo(tokens) {
         if (!dependenciesReady()) return true;
         const enIdx = tokens.findIndex(t => t.toLowerCase() === 'en' || t.toLowerCase() === 'at');
@@ -397,9 +397,18 @@ const SmartFlowCommands = (function() {
         }
 
         const tag = tokens[1];
-        const desdeToken = tokens[desdeIdx + 1];
+
+        // Reconstruir referencias con '@'
+        let desdeToken = tokens[desdeIdx + 1];
+        if (tokens[desdeIdx + 2] === '@') {
+            desdeToken += '@' + tokens[desdeIdx + 3];
+        }
+        let hastaToken = tokens[hastaIdx + 1];
+        if (tokens[hastaIdx + 2] === '@') {
+            hastaToken += '@' + tokens[hastaIdx + 3];
+        }
+
         const desde = parseNodeRef(desdeToken);
-        const hastaToken = tokens[hastaIdx + 1];
         const hasta = parseNodeRef(hastaToken);
 
         if (!desde.tag || !hasta.tag) {
@@ -574,8 +583,17 @@ const SmartFlowCommands = (function() {
         const leftSide = tokens.slice(0, arrowIdx);
         const rightSide = tokens.slice(arrowIdx + 1);
         if (!rightSide.length) { notify('Falta destino después de la palabra de enlace', true); return true; }
+
+        // Reconstruir referencia con '@' si está separada
+        let rightStr = rightSide[0];
+        if (rightSide.length > 1 && rightSide[1] === '@') {
+            rightStr = rightSide[0] + '@' + (rightSide[2] || '');
+            rightSide.splice(0, 1);
+            rightSide[0] = rightStr;
+        }
+
         const left = parseNodeRef(leftSide.join(''));
-        const right = parseNodeRef(rightSide[0]);
+        const right = parseNodeRef(rightStr);
         if (!left.tag || !right.tag) { notify('Origen o destino inválido', true); return true; }
         const params = extractParams(rightSide.slice(1));
         const diam = params.diametro || 4;
@@ -674,7 +692,14 @@ const SmartFlowCommands = (function() {
                 notify('Uso: punto EQUIPO.PUERTO o punto LINEA@POS o punto LINEA.EXTREMO', true);
                 return true;
             }
-            const ref = tokens[1];
+
+            // Reconstruir referencia si el tokenizador separó '@'
+            let ref = tokens[1];
+            const atIndex = tokens.indexOf('@');
+            if (atIndex > 0 && atIndex < tokens.length - 1) {
+                ref = tokens[1] + '@' + tokens[atIndex + 1];
+            }
+
             const dotIdx = ref.indexOf('.');
             const atIdx = ref.indexOf('@');
 
@@ -699,6 +724,7 @@ const SmartFlowCommands = (function() {
 
             let coords = null;
             if (obj.posX !== undefined) {
+                // Equipo
                 const port = obj.puertos?.find(p => p.id === portOrPos);
                 if (!port) {
                     notify(`Puerto ${portOrPos} no encontrado en ${tag}`, true);
@@ -710,6 +736,7 @@ const SmartFlowCommands = (function() {
                     z: (obj.posZ || 0) + (port.relZ || 0)
                 };
             } else {
+                // Línea
                 const pts = obj.points || obj._cachedPoints;
                 if (!pts || pts.length < 2) {
                     notify(`Línea ${tag} sin geometría`, true);
@@ -867,7 +894,7 @@ const SmartFlowCommands = (function() {
         _core = coreInstance || null;
         _catalog = catalogInstance || null;
         _notifyUI = notifyFn || console.log;
-        console.log("Commands v9.5 inicializado con dependencias seguras");
+        console.log("Commands v9.6 inicializado (soporte completo de @)");
     }
 
     return { init, executeCommand, executeBatch };
