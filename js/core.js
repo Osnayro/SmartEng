@@ -301,10 +301,12 @@ const SmartFlowCore = (function() {
         // --- Persistencia ---
         exportProject: function() { return JSON.stringify(_db); },
         importState: function(state) {
-            if (!state || !state.equipos || !state.lines) return false;
+            // 🔄 ADAPTADOR: Convierte datos 2D a formato 3D antes de importar
+            const cleanData = SmartFlowAdapter.ensure3DReady(state);
+            if (!cleanData || !cleanData.equipos || !cleanData.lines) return false;
             _visualMap.forEach(obj => _scene.remove(obj));
             _visualMap.clear();
-            _db = _deepClone(state);
+            _db = _deepClone(cleanData);
             if (_visualFactory) _refreshVisuals();
             _saveToHistory(); _notify();
             return true;
