@@ -455,7 +455,9 @@
         <button id="btnSetElev" style="padding:2px 8px;" aria-label="Establecer elevación">Set</button>
     </div>
 
-    <!-- Módulos de la aplicación (orden correcto) -->
+    <!-- ========== MÓDULOS DE LA APLICACIÓN (ORDEN CORRECTO) ========== -->
+    <!-- ADAPTADOR: Debe cargar ANTES del core para traducir formatos 2D/3D -->
+    <script src="js/smartflow-adapter.js"></script>
     <script src="js/core.js"></script>
     <script src="js/catalog.js"></script>
     <script src="js/router.js"></script>
