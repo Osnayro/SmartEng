@@ -1,6 +1,6 @@
 
 // ============================================================
-// SMARTFLOW CATALOG v3.1 (Completo: equipos, componentes, materiales, transiciones)
+// SMARTFLOW CATALOG v3.2 (Completo: equipos, componentes, materiales, transiciones)
 // Archivo: js/catalog.js
 // ============================================================
 
@@ -164,7 +164,7 @@ const SmartFlowCatalog = (function() {
         }
     };
 
-    // -------------------- 3. COMPONENTES DE TUBERÍA (ampliado) --------------------
+    // -------------------- 3. COMPONENTES DE TUBERÍA (v3.2 ampliado) --------------------
     const components = {
         // Tees y cruces
         TEE_EQUAL_CS: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta Acero', spec: 'ACERO_150_RF', norma: 'ASTM A234 WPB', material: 'Acero al Carbono' },
@@ -174,6 +174,16 @@ const SmartFlowCatalog = (function() {
         TEE_EQUAL_HDPE: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta HDPE', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
         TEE_EQUAL_PVC: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta PVC', spec: 'PVC_SCH80', conexion: 'CEMENTADO', material: 'PVC' },
         CROSS_CS: { tipo: 'CROSS', nombre: 'Cruz Acero', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
+        
+        // --- NUEVOS: ACERO INOXIDABLE (SS) ---
+        TEE_EQUAL_SS: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta Inoxidable', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
+        TEE_REDUCING_SS: { tipo: 'TEE_REDUCING', nombre: 'Tee Reductora Inoxidable', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
+        
+        // --- NUEVOS: PVC ---
+        TEE_REDUCING_PVC: { tipo: 'TEE_REDUCING', nombre: 'Tee Reductora PVC', spec: 'PVC_SCH80', conexion: 'CEMENTADO', material: 'PVC' },
+        
+        // --- NUEVOS: HDPE ---
+        TEE_REDUCING_HDPE: { tipo: 'TEE_REDUCING', nombre: 'Tee Reductora HDPE', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
         
         // Tuberías (PIPE)
         PIPE_PPR_PN12_5: { tipo: 'PIPE', nombre: 'Tubo PPR PN12.5', spec: 'PPR_PN12_5' },
@@ -193,6 +203,7 @@ const SmartFlowCatalog = (function() {
         BALL_VALVE_CS_150: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola Acero 150#', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         BALL_VALVE_PPR: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola PPR', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         BALL_VALVE_HDPE: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola HDPE', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
+        BALL_VALVE_SS: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola Inoxidable', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
         CHECK_VALVE_SWING_CS: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check Swing Acero', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         CHECK_VALVE_WAFER_SS: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check Wafer Inox', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
         CHECK_VALVE_PPR: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check PPR', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
@@ -211,6 +222,8 @@ const SmartFlowCatalog = (function() {
         ELBOW_45_HDPE: { tipo: 'ELBOW_45_HDPE', nombre: 'Codo 45° HDPE', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE', angulo: 45 },
         ELBOW_90_PVC: { tipo: 'ELBOW_90_PVC', nombre: 'Codo 90° PVC', spec: 'PVC_SCH80', conexion: 'CEMENTADO', material: 'PVC', angulo: 90 },
         ELBOW_45_PVC: { tipo: 'ELBOW_45_PVC', nombre: 'Codo 45° PVC', spec: 'PVC_SCH80', conexion: 'CEMENTADO', material: 'PVC', angulo: 45 },
+        ELBOW_90_LR_SS: { tipo: 'ELBOW_90_LR', nombre: 'Codo 90° Radio Largo Inox', spec: 'SS_150_RF', material: 'Acero Inoxidable', angulo: 90 },
+        ELBOW_45_SS: { tipo: 'ELBOW_45', nombre: 'Codo 45° Inoxidable', spec: 'SS_150_RF', material: 'Acero Inoxidable', angulo: 45 },
         ELBOW_90_SANITARY: { tipo: 'ELBOW_90_SR', nombre: 'Codo 90° Sanitario', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: 'Acero Inoxidable', angulo: 90 },
         
         // Reductores
@@ -218,6 +231,9 @@ const SmartFlowCatalog = (function() {
         ECCENTRIC_REDUCER_CS: { tipo: 'ECCENTRIC_REDUCER', nombre: 'Reductor Excéntrico Acero', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         CONCENTRIC_REDUCER_PPR: { tipo: 'CONCENTRIC_REDUCER', nombre: 'Reductor Concéntrico PPR', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         CONCENTRIC_REDUCER_HDPE: { tipo: 'CONCENTRIC_REDUCER', nombre: 'Reductor Concéntrico HDPE', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
+        CONCENTRIC_REDUCER_SS: { tipo: 'CONCENTRIC_REDUCER', nombre: 'Reductor Concéntrico Inox', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
+        CONCENTRIC_REDUCER_PVC: { tipo: 'CONCENTRIC_REDUCER', nombre: 'Reductor Concéntrico PVC', spec: 'PVC_SCH80', conexion: 'CEMENTADO', material: 'PVC' },
+        ECCENTRIC_REDUCER_PPR: { tipo: 'ECCENTRIC_REDUCER', nombre: 'Reductor Excéntrico PPR', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         
         // Bridas
         WELD_NECK_FLANGE_150: { tipo: 'WELD_NECK_FLANGE', nombre: 'Brida Cuello Soldable 150#', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
@@ -330,10 +346,10 @@ const SmartFlowCatalog = (function() {
     };
 
     // Herencia de generadores a variantes de material
-    ['TEE_EQUAL_PPR', 'TEE_EQUAL_HDPE', 'TEE_EQUAL_PVC'].forEach(key => {
+    ['TEE_EQUAL_PPR', 'TEE_EQUAL_HDPE', 'TEE_EQUAL_PVC', 'TEE_EQUAL_SS'].forEach(key => {
         if (components[key] && !components[key].generarPuertos) components[key].generarPuertos = components.TEE_EQUAL.generarPuertos;
     });
-    ['TEE_REDUCING_PPR'].forEach(key => {
+    ['TEE_REDUCING_PPR', 'TEE_REDUCING_PVC', 'TEE_REDUCING_HDPE', 'TEE_REDUCING_SS'].forEach(key => {
         if (components[key] && !components[key].generarPuertos) components[key].generarPuertos = components.TEE_REDUCING.generarPuertos;
     });
 
@@ -378,7 +394,6 @@ const SmartFlowCatalog = (function() {
         const to   = (componentMaterial || '').toUpperCase().trim();
         if (!to || from === to) return null;
 
-        // Familias plásticas compatibles
         const plasticFamilies = [
             ['PPR', 'PP', 'PPR', 'PP-EPDM', 'PP_EPDM'],
             ['PE', 'PE100', 'HDPE', 'PE_EPDM'],
@@ -389,7 +404,6 @@ const SmartFlowCatalog = (function() {
         );
         if (isPlasticCompatible) return null;
 
-        // Mapeo de transiciones
         const transitionMap = {
             'PPR->ACERO AL CARBONO': { left: 'ADAPTADOR_MACHO_PPR_3IN', right: 'UNION_CS_3000' },
             'ACERO AL CARBONO->PPR': { left: 'UNION_CS_3000', right: 'ADAPTADOR_HEMBRA_PPR_3IN' },
@@ -405,7 +419,6 @@ const SmartFlowCatalog = (function() {
         const key = `${from}->${to}`;
         if (transitionMap[key]) return transitionMap[key];
 
-        // Si ambos son metales, usar unión universal
         const metalMaterials = ['ACERO', 'INOXIDABLE', 'INOX', 'CARBONO', 'CS', 'SS'];
         const fromIsMetal = metalMaterials.some(m => from.includes(m));
         const toIsMetal = metalMaterials.some(m => to.includes(m));
@@ -472,7 +485,6 @@ const SmartFlowCatalog = (function() {
             const def = equipment[tipo];
             if (!def) return null;
             
-            // Asignar spec por defecto según material
             let defaultSpec = 'ACERO_150_RF';
             const material = (opciones.material || '').toUpperCase();
             if (material.includes('PPR')) defaultSpec = 'PPR_PN12_5';
