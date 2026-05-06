@@ -1,269 +1,142 @@
 
+// ============================================================
+// SMARTFLOW LABELS v1.1 - Etiquetas optimizadas para CSS2DRenderer 3D
+// Archivo: js/labels.js
+// ============================================================
 
-// SmartFlowLabels v1.8 – Optimizado para visibilidad en iPhone
 const SmartFlowLabels = (function() {
     let _core = null;
-    let _scene = null;
     let _labelRenderer = null;
-    let _itemsMap = new Map();
+    let _labelObjects = [];
+    let _scene = null;
 
-    const _config = {
-        lineColor: 0x00f2ff,
-        dashSize: 6,
-        gapSize: 4,
-        offset: new THREE.Vector3(250, 200, 250),
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        textColor: '#00f2ff',
-        bgColor: 'rgba(15, 23, 42, 0.85)',
-        borderColor: '#00f2ff',
-        borderRadius: '4px',
-        padding: '2px 8px'
-    };
-
-    // Muestra mensaje en la barra de estado de la aplicación
-    function _status(msg, isError = false) {
-        var el = document.getElementById('statusMsg');
-        if (el) {
-            el.innerText = 'Labels: ' + msg;
-            el.style.color = isError ? '#ff4444' : '#00f2ff';
-        }
-        if (isError) console.error('Labels:', msg);
-        else console.log('Labels:', msg);
+    function init(core, labelRenderer, scene) {
+        _core = core;
+        _labelRenderer = labelRenderer;
+        _scene = scene;
+        console.log('✅ Labels inicializado');
     }
 
-    // Verifica soporte de CSS2D
-    function _css2dSupported() {
-        if (typeof THREE === 'undefined') {
-            _status('Three.js no está cargado', true);
-            return false;
-        }
-        if (typeof THREE.CSS2DRenderer !== 'function') {
-            _status('CSS2DRenderer no disponible (CDN incompleto)', true);
-            return false;
-        }
-        if (typeof THREE.CSS2DObject !== 'function') {
-            _status('CSS2DObject no disponible', true);
-            return false;
-        }
-        return true;
-    }
-
-    // Crea una línea conectora 3D (dashed)
-    function createConnectorLine(start, end) {
-        if (!_css2dSupported() || !_scene) return null;
-        try {
-            var geom = new THREE.BufferGeometry().setFromPoints([start.clone(), end.clone()]);
-            var mat = new THREE.LineDashedMaterial({
-                color: _config.lineColor,
-                dashSize: _config.dashSize,
-                gapSize: _config.gapSize,
-                linewidth: 1
-            });
-            var line = new THREE.Line(geom, mat);
-            line.computeLineDistances();
-            return line;
-        } catch (e) {
-            _status('Error línea conectora: ' + e.message, true);
+    function crearLabel(texto, posicion, colorHex = '#ffffff', fontSize = '14px', offsetY = 200) {
+        if (!_labelRenderer || !_scene) {
+            console.warn('⚠️ LabelRenderer o Scene no disponibles');
             return null;
         }
-    }
 
-    // Crea una etiqueta CSS2D
-    function createLabel(text, position) {
-        if (!_css2dSupported() || !_scene) return null;
-        try {
-            var div = document.createElement('div');
-            div.innerHTML = text.replace(/\n/g, '<br>');
-            Object.assign(div.style, {
-                color: _config.textColor,
-                fontFamily: _config.fontFamily,
-                fontSize: _config.fontSize,
-                fontWeight: 'bold',
-                background: _config.bgColor,
-                border: '1px solid ' + _config.borderColor,
-                borderRadius: _config.borderRadius,
-                padding: _config.padding,
-                whiteSpace: 'nowrap',
-                pointerEvents: 'none'
-            });
-            var label = new THREE.CSS2DObject(div);
-            label.position.copy(position);
-            return label;
-        } catch (e) {
-            _status('Error creando etiqueta: ' + e.message, true);
-            return null;
-        }
-    }
+        const div = document.createElement('div');
+        div.textContent = texto;
+        div.style.cssText = `
+            color: ${colorHex};
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: ${fontSize};
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.6);
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid ${colorHex};
+            pointer-events: none;
+            white-space: nowrap;
+            user-select: none;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        `;
 
-    // Datos de etiqueta para un equipo
-    function getEquipmentLabelData(eq) {
-        var anchor = new THREE.Vector3(eq.posX, eq.posY, eq.posZ);
-        var offset = _config.offset.clone();
-        var text = eq.tag;
-        if (eq.tipo === 'tanque_v' || eq.tipo === 'torre') {
-            var diam = eq.diametro || 0;
-            var alt = eq.altura || 0;
-            text += '\n\u2300' + diam + 'mm H=' + alt + 'mm';
-            // Colocar el ancla en la parte superior del equipo
-            anchor = new THREE.Vector3(eq.posX, eq.posY + alt/2, eq.posZ);
-            // Desplazar la etiqueta hacia un lado para que no se solape con la geometría
-            offset = new THREE.Vector3(300, 300, 0);
-        } else if (eq.tipo === 'bomba') {
-            var alto = eq.altura || 800;
-            text += '\n' + alto + 'x' + (eq.ancho||800) + 'mm';
-            anchor = new THREE.Vector3(eq.posX, eq.posY + alto/2, eq.posZ);
-            offset = new THREE.Vector3(300, 200, 300);
-        }
-        var endPoint = anchor.clone().add(offset);
-        return { anchor: anchor, endPoint: endPoint, text: text };
-    }
-
-    // Datos de etiqueta para una línea
-    function getLineLabelData(line) {
-        var pts = line.points || line._cachedPoints;
-        if (!pts || pts.length < 2) return null;
-        var mid = new THREE.Vector3(0,0,0);
-        pts.forEach(function(p) { mid.add(new THREE.Vector3(p.x, p.y, p.z)); });
-        mid.divideScalar(pts.length);
-        var totalLen = 0;
-        for (var i=0; i<pts.length-1; i++) {
-            totalLen += Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y, pts[i+1].z-pts[i].z);
-        }
-        var diam = line.diameter || 4;
-        var material = line.material || 'PPR';
-        var text = line.tag + '\n' + diam + '" ' + material + '\nL=' + (totalLen/1000).toFixed(2) + 'm';
-        var offset = new THREE.Vector3(0, 200, 0);
-        var endPoint = mid.clone().add(offset);
-        return { anchor: mid, endPoint: endPoint, text: text };
-    }
-
-    // Elimina de forma segura un objeto (para evitar errores en iOS)
-    function _safeRemove(obj) {
-        if (!obj) return;
-        try {
-            if (typeof obj.removeFromParent === 'function') {
-                obj.removeFromParent();
-            } else if (obj.parent) {
-                obj.parent.remove(obj);
-            }
-        } catch (e) {
-            _status('Error removiendo: ' + e.message, true);
-        }
-    }
-
-    // Elimina la etiqueta correspondiente a un tag
-    function removeLabelForTag(tag) {
-        if (!_itemsMap.has(tag)) return;
-        var item = _itemsMap.get(tag);
-        if (item.line && _scene) _scene.remove(item.line);
-        if (item.label) _safeRemove(item.label);
-        _itemsMap.delete(tag);
-    }
-
-    // Actualiza (o crea) la etiqueta para un objeto
-    function updateLabelForObject(obj) {
-        if (!obj || !obj.tag) return;
-        var data;
-        if (obj.posX !== undefined) {
-            data = getEquipmentLabelData(obj);
-        } else {
-            data = getLineLabelData(obj);
-        }
-        if (!data) {
-            removeLabelForTag(obj.tag);
-            return;
-        }
-        // Eliminar etiqueta anterior
-        removeLabelForTag(obj.tag);
-        var line = createConnectorLine(data.anchor, data.endPoint);
-        var label = createLabel(data.text, data.endPoint);
-        if (!line || !label) return;
-        _scene.add(line);
+        const label = new THREE.CSS2DObject(div);
+        label.position.copy(posicion);
+        label.position.y += offsetY;
+        label.userData = { texto, colorHex, fontSize, offsetY, type: 'label' };
+        
         _scene.add(label);
-        _itemsMap.set(obj.tag, { line: line, label: label });
+        _labelObjects.push(label);
+        
+        return label;
     }
 
-    // Reconstruye todas las etiquetas de la escena
-    function updateAllLabels() {
-        if (!_core || !_scene) return;
-        var db = _core.getDb();
-        if (!db) return;
-        var currentTags = {};
-        (db.equipos||[]).forEach(function(eq) {
-            currentTags[eq.tag] = true;
-            updateLabelForObject(eq);
-        });
-        (db.lines||[]).forEach(function(line) {
-            currentTags[line.tag] = true;
-            updateLabelForObject(line);
-        });
-        // Eliminar etiquetas de objetos que ya no existen
-        _itemsMap.forEach(function(item, tag) {
-            if (!currentTags[tag]) {
-                removeLabelForTag(tag);
-            }
-        });
-        _status('Actualizadas ' + _itemsMap.size + ' etiquetas');
+    function crearLabelEquipo(equipo) {
+        if (!equipo) return null;
+        
+        const pos = {
+            x: equipo.posX || (equipo.pos?.x || 0),
+            y: equipo.posY || (equipo.pos?.y || 0),
+            z: equipo.posZ || (equipo.pos?.z || 0)
+        };
+
+        const altura = equipo.altura || 1500;
+        const offsetY = altura / 2 + 300;
+        
+        // Color según tipo de equipo
+        let color = '#00f2ff'; // cyan por defecto
+        if (equipo.tipo?.includes('bomba')) color = '#f59e0b';
+        else if (equipo.tipo?.includes('tanque')) color = '#3b82f6';
+        else if (equipo.tipo?.includes('torre')) color = '#ef4444';
+        else if (equipo.tipo?.includes('reactor')) color = '#8b5cf6';
+        else if (equipo.tipo?.includes('intercambiador')) color = '#10b981';
+
+        return crearLabel(equipo.tag, pos, color, '16px', offsetY);
     }
 
-    // Inicialización del módulo
-    function init(coreInstance) {
-        _core = coreInstance;
-        _scene = _core.getScene();
-        if (!_scene) {
-            _status('Escena no disponible', true);
-            return;
-        }
-        if (!_css2dSupported()) {
-            _status('CSS2D no soportado', true);
-            return;
-        }
-        var container = document.getElementById('canvas-container');
-        if (!container) {
-            _status('canvas-container no encontrado', true);
-            return;
-        }
-
-        // Crear el renderizador CSS2D
-        _labelRenderer = new THREE.CSS2DRenderer();
-        _labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        // ESTILOS CRÍTICOS para visibilidad en iPhone
-        _labelRenderer.domElement.style.position = 'absolute';
-        _labelRenderer.domElement.style.top = '0px';
-        _labelRenderer.domElement.style.left = '0px';
-        _labelRenderer.domElement.style.zIndex = '10'; // ¡Forzar por encima del canvas 3D!
-        _labelRenderer.domElement.style.pointerEvents = 'none';
-        container.appendChild(_labelRenderer.domElement);
-
-        // Enganchar el bucle de animación para renderizar las etiquetas
-        var originalAnimate = _core.getAnimate();
-        if (originalAnimate) {
-            var newAnimate = function() {
-                originalAnimate();
-                if (_labelRenderer && _core.getCamera()) {
-                    _labelRenderer.render(_scene, _core.getCamera());
-                }
-            };
-            _core.setAnimate(newAnimate);
-        }
-
-        // Actualizar etiquetas cuando cambie la base de datos
-        _core.subscribe(function() {
-            updateAllLabels();
-        });
-
-        // Actualización inicial
-        updateAllLabels();
-
-        window.addEventListener('resize', function() {
-            if (_labelRenderer) {
-                _labelRenderer.setSize(window.innerWidth, window.innerHeight);
-            }
-        });
-
-        _status('Etiquetas activas y visibles (' + _itemsMap.size + ')', false);
+    function crearLabelLinea(linea) {
+        if (!linea) return null;
+        
+        const pts = linea.points || linea._cachedPoints || linea.points3D || [];
+        if (pts.length < 2) return null;
+        
+        // Punto medio de la línea
+        const midIdx = Math.floor(pts.length / 2);
+        const pos = { x: pts[midIdx].x, y: pts[midIdx].y + 200, z: pts[midIdx].z };
+        
+        return crearLabel(linea.tag, pos, '#f59e0b', '12px', 0);
     }
 
-    return { init: init };
+    function crearLabelsProyecto() {
+        if (!_core) return;
+        
+        // Limpiar labels existentes
+        limpiarLabels();
+        
+        const db = _core.getDb();
+        
+        // Labels de equipos
+        (db.equipos || []).forEach(eq => {
+            crearLabelEquipo(eq);
+        });
+        
+        // Labels de líneas
+        (db.lines || []).forEach(line => {
+            crearLabelLinea(line);
+        });
+        
+        console.log(`✅ ${_labelObjects.length} labels creadas`);
+    }
+
+    function actualizarLabelPosicion(label, nuevaPos, offsetY) {
+        if (!label) return;
+        label.position.copy(nuevaPos);
+        if (offsetY !== undefined) label.position.y += offsetY;
+    }
+
+    function limpiarLabels() {
+        if (!_scene) return;
+        _labelObjects.forEach(label => {
+            _scene.remove(label);
+            if (label.element) label.element.remove();
+        });
+        _labelObjects = [];
+    }
+
+    function getLabels() {
+        return _labelObjects;
+    }
+
+    return {
+        init,
+        crearLabel,
+        crearLabelEquipo,
+        crearLabelLinea,
+        crearLabelsProyecto,
+        actualizarLabelPosicion,
+        limpiarLabels,
+        getLabels
+    };
 })();
