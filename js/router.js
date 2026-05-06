@@ -1,10 +1,8 @@
 
 // ============================================================
-// MÓDULO 6: SMARTFLOW ROUTER (Enrutamiento Automático) - v2.7 FINAL
+// MÓDULO 6: SMARTFLOW ROUTER (Enrutamiento Automático) - v2.8 CORREGIDO
 // Archivo: js/router.js
-// Enrutamiento ortogonal + Flexibilidad en extremos de línea +
-// Filtro de waypoints duplicados + Protección ante arrays vacíos +
-// Manejo robusto de diferencia de diámetros (reductor en nueva línea).
+// Corrección: findComponentInCatalog + findElbowForLine (multimaterial)
 // ============================================================
 
 const SmartFlowRouter = (function() {
@@ -113,7 +111,7 @@ const SmartFlowRouter = (function() {
                 z: obj.posZ + (puerto.relZ || puerto.relPos?.z || 0)
             };
         }
-        const pts = obj._cachedPoints || obj.points3D;
+        const pts = obj._cachedPoints || obj.points3D || obj.points;
         if (!pts || pts.length === 0) return null;
         if (obj.puertos) {
             const puerto = obj.puertos.find(p => p.id === portId);
@@ -131,7 +129,7 @@ const SmartFlowRouter = (function() {
             if (puerto && puerto.orientacion) return puerto.orientacion;
             return { dx: 1, dy: 0, dz: 0 };
         }
-        const pts = obj._cachedPoints || obj.points3D;
+        const pts = obj._cachedPoints || obj.points3D || obj.points;
         if (pts && pts.length >= 2) {
             if (portId === '0') return normalizeVector(subtractPoints(pts[1], pts[0]));
             if (portId === '1') return normalizeVector(subtractPoints(pts[pts.length - 1], pts[pts.length - 2]));
@@ -140,51 +138,120 @@ const SmartFlowRouter = (function() {
         return { dx: 1, dy: 0, dz: 0 };
     }
 
+    // ==================== findComponentInCatalog CORREGIDO (v2.8) ====================
     function findComponentInCatalog(desiredType, lineMaterial = 'PPR', fallbackTypes = []) {
         ensureInitialized();
         const catalog = _catalog || window.SmartFlowCatalog;
         if (!catalog) { notifyUser('Catálogo no disponible', true); return null; }
         const allTypes = catalog.listComponentTypes();
-        if (desiredType === 'CONCENTRIC_REDUCER' || desiredType === 'ECCENTRIC_REDUCER') {
-            if (allTypes.includes('CONCENTRIC_REDUCER_CS')) return 'CONCENTRIC_REDUCER_CS';
-            if (allTypes.includes('ECCENTRIC_REDUCER_CS')) return 'ECCENTRIC_REDUCER_CS';
-        }
+        
         const materialUpper = lineMaterial.toUpperCase();
+        
+        // Determinar prefijo de material
         let materialPrefix = '';
         if (materialUpper.includes('PPR')) materialPrefix = 'PPR';
         else if (materialUpper.includes('HDPE')) materialPrefix = 'HDPE';
         else if (materialUpper.includes('PVC')) materialPrefix = 'PVC';
-        else if (materialUpper.includes('ACERO')) materialPrefix = 'CS';
+        else if (materialUpper.includes('ACERO') || materialUpper.includes('CARBONO') || materialUpper.includes('CS')) materialPrefix = 'CS';
+        else if (materialUpper.includes('INOX')) materialPrefix = 'SS';
+        
+        // Construir lista de candidatos en orden de prioridad
+        const candidates = [];
+        
+        // 1. Tipo exacto con material
         if (materialPrefix) {
-            const withMaterial = `${desiredType}_${materialPrefix}`;
-            if (allTypes.includes(withMaterial)) return withMaterial;
+            candidates.push(`${desiredType}_${materialPrefix}`);
+            // Alternativas para reductores
+            if (desiredType.includes('REDUCER')) {
+                candidates.push(`CONCENTRIC_REDUCER_${materialPrefix}`);
+                candidates.push(`ECCENTRIC_REDUCER_${materialPrefix}`);
+            }
         }
-        if (allTypes.includes(desiredType)) return desiredType;
-        for (let fb of fallbackTypes) if (allTypes.includes(fb)) return fb;
+        
+        // 2. Tipo base
+        candidates.push(desiredType);
+        
+        // 3. Fallbacks explícitos
+        for (let fb of fallbackTypes) {
+            if (materialPrefix) candidates.push(`${fb}_${materialPrefix}`);
+            candidates.push(fb);
+        }
+        
+        // 4. Buscar en orden
+        for (let candidate of candidates) {
+            if (allTypes.includes(candidate)) {
+                return candidate;
+            }
+        }
+        
+        // 5. Búsqueda flexible por nombre base + material
         const baseName = desiredType.split('_')[0];
-        for (let type of allTypes) if (type.includes(baseName)) return type;
+        for (let type of allTypes) {
+            const typeUpper = type.toUpperCase();
+            if (typeUpper.includes(baseName) && materialPrefix && typeUpper.includes(materialPrefix)) {
+                return type;
+            }
+        }
+        
+        // 6. Solo por nombre base (último recurso)
+        for (let type of allTypes) {
+            if (type.toUpperCase().includes(baseName)) {
+                return type;
+            }
+        }
+        
+        // 7. Si es reductor y no encontró nada, devolver null sin error
+        if (desiredType.includes('REDUCER')) {
+            return null;
+        }
+        
         return null;
     }
 
+    // ==================== findElbowForLine CORREGIDO (v2.8) ====================
     function findElbowForLine(material, diameter, angleDeg) {
-        const mat = material.toUpperCase();
+        const mat = (material || '').toUpperCase();
         const is90 = (Math.abs(angleDeg - 90) < 10);
         const is45 = (Math.abs(angleDeg - 45) < 10);
         if (!is90 && !is45) return null;
+        
         const catalog = _catalog || window.SmartFlowCatalog;
         if (!catalog) return null;
-        if (mat.includes('PPR')) {
-            return is90 ? 'ELBOW_90_PPR' : 'ELBOW_45_PPR';
-        } else if (mat.includes('HDPE')) {
-            return is90 ? 'ELBOW_90_HDPE' : null;
-        } else if (mat.includes('PVC')) {
-            return is90 ? 'ELBOW_90_PVC' : null;
-        } else if (mat.includes('ACERO')) {
-            return is90 ? 'ELBOW_90_LR_CS' : 'ELBOW_45_CS';
-        } else if (mat.includes('INOXIDABLE') || mat.includes('INOX')) {
-            return is90 ? 'ELBOW_90_SANITARY' : null;
+        
+        // Determinar prefijo de material
+        let prefix = '';
+        if (mat.includes('PPR')) prefix = 'PPR';
+        else if (mat.includes('HDPE')) prefix = 'HDPE';
+        else if (mat.includes('PVC')) prefix = 'PVC';
+        else if (mat.includes('ACERO') || mat.includes('CARBONO') || mat.includes('CS')) prefix = 'CS';
+        else if (mat.includes('INOX')) prefix = 'SS';
+        
+        // Construir candidatos
+        const candidates = [];
+        if (is90) {
+            if (prefix) candidates.push(`ELBOW_90_${prefix}`);
+            candidates.push('ELBOW_90_LR_CS');
+            candidates.push('ELBOW_90_PPR');
         }
-        return is90 ? 'ELBOW_90_LR_CS' : 'ELBOW_45_CS';
+        if (is45) {
+            if (prefix) candidates.push(`ELBOW_45_${prefix}`);
+            candidates.push('ELBOW_45_CS');
+            candidates.push('ELBOW_45_PPR');
+        }
+        
+        const allTypes = catalog.listComponentTypes();
+        for (let c of candidates) {
+            if (allTypes.includes(c)) return c;
+        }
+        
+        // Búsqueda flexible
+        for (let type of allTypes) {
+            const typeUpper = type.toUpperCase();
+            if (is90 && typeUpper.includes('ELBOW_90') && prefix && typeUpper.includes(prefix)) return type;
+            if (is45 && typeUpper.includes('ELBOW_45') && prefix && typeUpper.includes(prefix)) return type;
+        }
+        
+        return null;
     }
 
     function insertarAccesorioEnLinea(lineTag, puntoConexion, diametroNuevaLinea, forzarTee = false) {
@@ -194,7 +261,7 @@ const SmartFlowRouter = (function() {
         const linea = db.lines.find(l => l.tag === lineTag);
         if (!linea) { notifyUser(`Línea ${lineTag} no encontrada`, true); return null; }
 
-        const pts = linea._cachedPoints || linea.points3D;
+        const pts = linea._cachedPoints || linea.points3D || linea.points;
         if (!pts || pts.length < 2) { notifyUser(`Línea ${lineTag} sin geometría`, true); return null; }
 
         let lengths = [], totalLen = 0;
@@ -239,7 +306,7 @@ const SmartFlowRouter = (function() {
 
         const compEnCatalogo = findComponentInCatalog(tipoAccesorio, lineMaterial, []);
         if (!compEnCatalogo) {
-            notifyUser(`Componente no encontrado en catálogo: ${tipoAccesorio}`, true);
+            notifyUser(`Componente no encontrado en catálogo: ${tipoAccesorio} (material: ${lineMaterial})`, true);
             return null;
         }
 
@@ -277,12 +344,12 @@ const SmartFlowRouter = (function() {
         const lineasExistentes = db.lines.filter(l => l.tag !== nuevaLinea.tag);
         if (lineasExistentes.length === 0) return;
         
-        const ptsNueva = nuevaLinea._cachedPoints || nuevaLinea.points3D;
+        const ptsNueva = nuevaLinea._cachedPoints || nuevaLinea.points3D || nuevaLinea.points;
         if (!ptsNueva || ptsNueva.length < 2) return;
         
         const tolerancia = 100;
         for (let lineaExistente of lineasExistentes) {
-            const ptsExistente = lineaExistente._cachedPoints || lineaExistente.points3D;
+            const ptsExistente = lineaExistente._cachedPoints || lineaExistente.points3D || lineaExistente.points;
             if (!ptsExistente || ptsExistente.length < 2) continue;
             
             for (let i = 0; i < ptsNueva.length - 1; i++) {
@@ -337,10 +404,10 @@ const SmartFlowRouter = (function() {
         }
 
         let endPos, nuevoPuertoId = toPortId;
-        let reductorComponent = null;   // <-- Guardará el reductor si es necesario
+        let reductorComponent = null;
 
-        if (toObj._cachedPoints || toObj.points3D) {
-            const pts = toObj._cachedPoints || toObj.points3D;
+        if (toObj._cachedPoints || toObj.points3D || toObj.points) {
+            const pts = toObj._cachedPoints || toObj.points3D || toObj.points;
             if (!pts || pts.length < 2) {
                 notifyUser(`La línea ${toEquipTag} no tiene geometría definida.`, true);
                 return null;
@@ -355,7 +422,6 @@ const SmartFlowRouter = (function() {
                         bestPoint = proj.point;
                     }
                 }
-                // Intentar insertar Tee en punto intermedio
                 const puertoInsertado = insertarAccesorioEnLinea(toEquipTag, bestPoint, diameter, true);
                 if (!puertoInsertado) return null;
                 nuevoPuertoId = puertoInsertado;
@@ -373,19 +439,17 @@ const SmartFlowRouter = (function() {
                 if (esExtremo && !diffDiam) {
                     nuevoPuertoId = toPortId;
                 } else if (esExtremo && diffDiam) {
-                    // Diferencia de diámetro en extremo → intentar poner reductor en la línea destino
                     const puertoInsertado = insertarAccesorioEnLinea(toEquipTag, puntoConexion, diameter, false);
                     if (puertoInsertado) {
                         nuevoPuertoId = puertoInsertado;
                         toObj = db.lines.find(l => l.tag === toEquipTag);
                     } else {
-                        // Si falla, colocamos el reductor en la nueva línea
                         const reductorId = findComponentInCatalog('CONCENTRIC_REDUCER', material, []);
                         if (reductorId) {
                             reductorComponent = {
                                 type: reductorId,
                                 tag: reductorId + '-' + Date.now().toString().slice(-6),
-                                param: 1.0   // al final de la nueva línea
+                                param: 1.0
                             };
                             notifyUser(`⚠️ No se pudo insertar reductor en ${toEquipTag}. Se añadirá a la nueva línea`, false);
                         }
@@ -446,6 +510,8 @@ const SmartFlowRouter = (function() {
             destination: { objType: toObj.posX !== undefined ? 'equipment' : 'line', equipTag: toEquipTag, portId: nuevoPuertoId },
             waypoints: uniqueWaypoints.slice(1, -1),
             _cachedPoints: [...uniqueWaypoints],
+            points3D: [...uniqueWaypoints],
+            points: [...uniqueWaypoints],
             components: []
         };
 
@@ -500,10 +566,9 @@ const SmartFlowRouter = (function() {
             }
         } catch (e) { /* silenciar */ }
 
-        // Si hubo diferencia de diámetros y no se pudo insertar en la línea destino, añadir reductor a la nueva línea
         if (reductorComponent) {
             nuevaLinea.components.push(reductorComponent);
-            notifyUser(`✅ Reductor concéntrico (${reductorComponent.type}) añadido al final de ${tag}`, false);
+            notifyUser(`✅ Reductor (${reductorComponent.type}) añadido al final de ${tag}`, false);
         }
 
         _core.addLine(nuevaLinea);
@@ -579,7 +644,7 @@ const SmartFlowRouter = (function() {
         _catalog = catalogInstance;
         _notifyUI = notifyFn || ((msg, isErr) => console.log(msg));
         _renderUI = renderFn || (() => {});
-        console.log('SmartFlow Router v2.7 FINAL inicializado (robusto)');
+        console.log('✅ SmartFlow Router v2.8 CORREGIDO (multimaterial)');
     }
 
     return {
@@ -589,6 +654,8 @@ const SmartFlowRouter = (function() {
         procesarInterseccionesDeLinea,
         getPortPosition,
         getPortDirection,
+        findComponentInCatalog,
+        findElbowForLine,
         handleSnapClick,
         executeCommand
     };
