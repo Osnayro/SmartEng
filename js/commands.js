@@ -1102,8 +1102,6 @@ const SmartFlowCommands = (function() {
                     }
                     if (currentComponent) {
                         currentComponent.pos = p1;
-                        if (diam) currentComponent.diameter
-```y 
                         if (diam) currentComponent.diameter = diam;
                     }
                 }
@@ -1148,7 +1146,6 @@ const SmartFlowCommands = (function() {
         const normalized = normalizeCommand(cmd);
         const trimmed = normalized.trim();
         
-        // Orden de prioridad de parsers
         if (parseCreateLine(trimmed)) return true;
         if (parseCreateManifold(trimmed)) return true;
         if (parseCreate(trimmed)) return true;
@@ -1168,7 +1165,6 @@ const SmartFlowCommands = (function() {
         if (parsePoint(trimmed)) return true;
         if (parseNodes(trimmed)) return true;
         
-        // Comandos simples
         if (trimmed === 'undo' || trimmed === 'deshacer') { if (_core) _core.undo(); _renderUI(); return true; }
         if (trimmed === 'redo' || trimmed === 'rehacer') { if (_core) _core.redo(); _renderUI(); return true; }
         
