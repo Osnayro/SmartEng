@@ -1,8 +1,8 @@
 
 // ============================================================
-// MÓDULO 6: SMARTFLOW ROUTER (Enrutamiento Automático) - v2.9 FINAL
+// MÓDULO 6: SMARTFLOW ROUTER (Enrutamiento Automático) - v3.0 FINAL
 // Archivo: js/router.js
-// Correcciones: findElbowForLine + findComponentInCatalog multimaterial
+// Correcciones: Auto-codo siempre + findElbowForLine + findComponentInCatalog multimaterial
 // ============================================================
 
 const SmartFlowRouter = (function() {
@@ -102,6 +102,7 @@ const SmartFlowRouter = (function() {
 
     function getPortPosition(obj, portId) {
         if (!obj) return null;
+        // Formato 2D (posX, posY, posZ)
         if (obj.posX !== undefined) {
             const puerto = obj.puertos?.find(p => p.id === portId);
             if (!puerto) return null;
@@ -111,6 +112,7 @@ const SmartFlowRouter = (function() {
                 z: obj.posZ + (puerto.relZ || puerto.relPos?.z || 0)
             };
         }
+        // Formato 3D (pos.x, pos.y, pos.z)
         if (obj.pos && obj.pos.x !== undefined) {
             const puerto = obj.puertos?.find(p => p.id === portId);
             if (!puerto) return null;
@@ -120,6 +122,7 @@ const SmartFlowRouter = (function() {
                 z: obj.pos.z + (puerto.relZ || puerto.relPos?.z || 0)
             };
         }
+        // Línea
         const pts = obj._cachedPoints || obj.points3D || obj.points;
         if (!pts || pts.length === 0) return null;
         if (obj.puertos) {
@@ -133,11 +136,13 @@ const SmartFlowRouter = (function() {
 
     function getPortDirection(obj, portId) {
         if (!obj) return { dx: 1, dy: 0, dz: 0 };
+        // Equipo (2D o 3D)
         if (obj.posX !== undefined || (obj.pos && obj.pos.x !== undefined)) {
             const puerto = obj.puertos?.find(p => p.id === portId);
             if (puerto && puerto.orientacion) return puerto.orientacion;
             return { dx: 1, dy: 0, dz: 0 };
         }
+        // Línea
         const pts = obj._cachedPoints || obj.points3D || obj.points;
         if (pts && pts.length >= 2) {
             if (portId === '0') return normalizeVector(subtractPoints(pts[1], pts[0]));
@@ -147,7 +152,7 @@ const SmartFlowRouter = (function() {
         return { dx: 1, dy: 0, dz: 0 };
     }
 
-    // ==================== findComponentInCatalog (v2.9) ====================
+    // ==================== findComponentInCatalog (v3.0) ====================
     function findComponentInCatalog(desiredType, lineMaterial = 'PPR', fallbackTypes = []) {
         ensureInitialized();
         const catalog = _catalog || window.SmartFlowCatalog;
@@ -181,40 +186,32 @@ const SmartFlowRouter = (function() {
         }
         
         for (let candidate of candidates) {
-            if (allTypes.includes(candidate)) {
-                return candidate;
-            }
+            if (allTypes.includes(candidate)) return candidate;
         }
         
         const baseName = desiredType.split('_')[0];
         for (let type of allTypes) {
             const typeUpper = type.toUpperCase();
-            if (typeUpper.includes(baseName) && materialPrefix && typeUpper.includes(materialPrefix)) {
-                return type;
-            }
+            if (typeUpper.includes(baseName) && materialPrefix && typeUpper.includes(materialPrefix)) return type;
         }
         
         for (let type of allTypes) {
-            if (type.toUpperCase().includes(baseName)) {
-                return type;
-            }
+            if (type.toUpperCase().includes(baseName)) return type;
         }
         
-        if (desiredType.includes('REDUCER')) {
-            return null;
-        }
+        if (desiredType.includes('REDUCER')) return null;
         
         return null;
     }
 
-    // ==================== findElbowForLine CORREGIDO (v2.9) ====================
+    // ==================== findElbowForLine (v3.0) ====================
     function findElbowForLine(material, diameter, angleDeg) {
         const mat = (material || '').toUpperCase();
         const is90 = (Math.abs(angleDeg - 90) < 15);
         const is45 = (Math.abs(angleDeg - 45) < 15);
         
         if (!is90 && !is45) {
-            console.log(`Ángulo ${angleDeg.toFixed(1)}° no requiere codo (fuera de rango 45° o 90°)`);
+            console.log(`Ángulo ${angleDeg.toFixed(1)}° no requiere codo`);
             return null;
         }
         
@@ -246,9 +243,7 @@ const SmartFlowRouter = (function() {
         }
         
         if (is45) {
-            if (prefix) {
-                candidates.push(`ELBOW_45_${prefix}`);
-            }
+            if (prefix) candidates.push(`ELBOW_45_${prefix}`);
             candidates.push('ELBOW_45_CS');
             candidates.push('ELBOW_45_PPR');
             candidates.push('ELBOW_45_HDPE');
@@ -258,7 +253,7 @@ const SmartFlowRouter = (function() {
         
         for (let candidate of candidates) {
             if (allTypes.includes(candidate)) {
-                console.log(`✅ Codo encontrado: ${candidate} para ${mat} ${angleDeg.toFixed(0)}°`);
+                console.log(`✅ Codo encontrado: ${candidate} (${angleDeg.toFixed(0)}°)`);
                 return candidate;
             }
         }
@@ -275,7 +270,7 @@ const SmartFlowRouter = (function() {
             }
         }
         
-        console.warn(`❌ No se encontró codo ${is90 ? '90' : '45'}° para material ${mat}. Candidatos: ${candidates.join(', ')}`);
+        console.warn(`❌ No se encontró codo para ${mat} ${angleDeg.toFixed(0)}°`);
         return null;
     }
 
@@ -331,7 +326,7 @@ const SmartFlowRouter = (function() {
 
         const compEnCatalogo = findComponentInCatalog(tipoAccesorio, lineMaterial, []);
         if (!compEnCatalogo) {
-            notifyUser(`Componente no encontrado en catálogo: ${tipoAccesorio} (material: ${lineMaterial})`, true);
+            notifyUser(`Componente no encontrado: ${tipoAccesorio} (${lineMaterial})`, true);
             return null;
         }
 
@@ -418,10 +413,11 @@ const SmartFlowRouter = (function() {
         let endPos, nuevoPuertoId = toPortId;
         let reductorComponent = null;
 
+        // Destino es línea
         if (toObj._cachedPoints || toObj.points3D || toObj.points) {
             const pts = toObj._cachedPoints || toObj.points3D || toObj.points;
             if (!pts || pts.length < 2) {
-                notifyUser(`La línea ${toEquipTag} no tiene geometría definida.`, true);
+                notifyUser(`La línea ${toEquipTag} no tiene geometría`, true);
                 return null;
             }
             
@@ -485,7 +481,8 @@ const SmartFlowRouter = (function() {
         const p1 = addPoints(startPos, scalePoint(startDir, extStart));
 
         let endDir, extEnd = 500;
-        if (toObj.posX !== undefined || (toObj.pos && toObj.pos.x !== undefined)) {
+        const isEquipoDest = toObj.posX !== undefined || (toObj.pos && toObj.pos.x !== undefined);
+        if (isEquipoDest) {
             endDir = normalizeVector(getPortDirection(toObj, nuevoPuertoId));
         } else {
             const vecHaciaDestino = subtractPoints(endPos, p1);
@@ -519,8 +516,8 @@ const SmartFlowRouter = (function() {
         const tag = `L-${db.lines.length + 1}`;
         const nuevaLinea = {
             tag, diameter, material, spec,
-            origin: { objType: fromObj.posX !== undefined || (fromObj.pos && fromObj.pos.x !== undefined) ? 'equipment' : 'line', equipTag: fromEquipTag, portId: fromPortId },
-            destination: { objType: toObj.posX !== undefined || (toObj.pos && toObj.pos.x !== undefined) ? 'equipment' : 'line', equipTag: toEquipTag, portId: nuevoPuertoId },
+            origin: { objType: (fromObj.posX !== undefined || (fromObj.pos && fromObj.pos.x !== undefined)) ? 'equipment' : 'line', equipTag: fromEquipTag, portId: fromPortId },
+            destination: { objType: isEquipoDest ? 'equipment' : 'line', equipTag: toEquipTag, portId: nuevoPuertoId },
             waypoints: uniqueWaypoints.slice(1, -1),
             _cachedPoints: [...uniqueWaypoints],
             points3D: [...uniqueWaypoints],
@@ -528,7 +525,7 @@ const SmartFlowRouter = (function() {
             components: []
         };
 
-        // ===== AUTO-CODO EN ORIGEN =====
+        // ===== AUTO-CODO EN ORIGEN (SIEMPRE - CORREGIDO v3.0) =====
         try {
             if (uniqueWaypoints.length >= 2) {
                 const fromPortDir = getPortDirection(fromObj, fromPortId);
@@ -539,7 +536,7 @@ const SmartFlowRouter = (function() {
                     const angleRad = Math.acos(Math.min(1, Math.max(-1, dotProd)));
                     const angleDeg = angleRad * 180 / Math.PI;
                     
-                    console.log(`🔍 Origen: ángulo=${angleDeg.toFixed(1)}° (dot=${dotProd.toFixed(3)})`);
+                    console.log(`🔍 Origen: ángulo=${angleDeg.toFixed(1)}°`);
                     
                     if (angleDeg > 15) {
                         const elbowId = findElbowForLine(material, diameter, angleDeg);
@@ -547,16 +544,18 @@ const SmartFlowRouter = (function() {
                             nuevaLinea.components.push({
                                 type: elbowId,
                                 tag: elbowId + '-' + Date.now().toString().slice(-6),
-                                param: 0.0
+                                param: 0.05
                             });
-                            notifyUser(`✅ Codo ${angleDeg.toFixed(0)}° (${elbowId}) insertado al inicio de ${tag}`, false);
+                            notifyUser(`✅ Codo ${angleDeg.toFixed(0)}° (${elbowId}) al inicio de ${tag}`, false);
+                        } else {
+                            console.warn(`⚠️ No se encontró codo para ${material} ${angleDeg.toFixed(0)}°`);
                         }
                     }
                 }
             }
         } catch (e) { console.warn('Error auto-codo origen:', e); }
 
-        // ===== AUTO-CODO EN DESTINO =====
+        // ===== AUTO-CODO EN DESTINO (SIEMPRE - CORREGIDO v3.0) =====
         try {
             if (uniqueWaypoints.length >= 2) {
                 const toPortDir = getPortDirection(toObj, nuevoPuertoId);
@@ -567,7 +566,7 @@ const SmartFlowRouter = (function() {
                     const angleRad = Math.acos(Math.min(1, Math.max(-1, dotProd)));
                     const angleDeg = angleRad * 180 / Math.PI;
                     
-                    console.log(`🔍 Destino: ángulo=${angleDeg.toFixed(1)}° (dot=${dotProd.toFixed(3)})`);
+                    console.log(`🔍 Destino: ángulo=${angleDeg.toFixed(1)}°`);
                     
                     if (angleDeg > 15) {
                         const elbowId = findElbowForLine(material, diameter, angleDeg);
@@ -575,9 +574,11 @@ const SmartFlowRouter = (function() {
                             nuevaLinea.components.push({
                                 type: elbowId,
                                 tag: elbowId + '-' + Date.now().toString().slice(-6),
-                                param: 1.0
+                                param: 0.95
                             });
-                            notifyUser(`✅ Codo ${angleDeg.toFixed(0)}° (${elbowId}) insertado al final de ${tag}`, false);
+                            notifyUser(`✅ Codo ${angleDeg.toFixed(0)}° (${elbowId}) al final de ${tag}`, false);
+                        } else {
+                            console.warn(`⚠️ No se encontró codo para ${material} ${angleDeg.toFixed(0)}°`);
                         }
                     }
                 }
@@ -586,7 +587,7 @@ const SmartFlowRouter = (function() {
 
         if (reductorComponent) {
             nuevaLinea.components.push(reductorComponent);
-            notifyUser(`✅ Reductor (${reductorComponent.type}) añadido al final de ${tag}`, false);
+            notifyUser(`✅ Reductor (${reductorComponent.type}) al final de ${tag}`, false);
         }
 
         _core.addLine(nuevaLinea);
@@ -599,7 +600,6 @@ const SmartFlowRouter = (function() {
             if (pTo) pTo.connectedLine = tag;
         }
 
-        // Compatibilidad con ambos cores
         if (_core.syncPhysicalData) _core.syncPhysicalData();
         if (_core._saveState) _core._saveState();
         if (_core._saveToHistory) _core._saveToHistory();
@@ -607,7 +607,7 @@ const SmartFlowRouter = (function() {
 
         if (_core.setSelected) _core.setSelected({ type: 'line', obj: nuevaLinea });
 
-        notifyUser(`✅ Ruta creada: ${tag} (${fromEquipTag}.${fromPortId} → ${toEquipTag}.${nuevoPuertoId})`, false);
+        notifyUser(`✅ Ruta: ${tag} (${fromEquipTag}.${fromPortId} → ${toEquipTag}.${nuevoPuertoId})`, false);
         return nuevaLinea;
     }
 
@@ -665,7 +665,7 @@ const SmartFlowRouter = (function() {
         _catalog = catalogInstance;
         _notifyUI = notifyFn || ((msg, isErr) => console.log(msg));
         _renderUI = renderFn || (() => {});
-        console.log('✅ SmartFlow Router v2.9 FINAL (codos corregidos + multimaterial)');
+        console.log('✅ SmartFlow Router v3.0 FINAL (auto-codo siempre)');
     }
 
     return {
