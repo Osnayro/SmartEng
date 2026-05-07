@@ -1,7 +1,5 @@
 
-
-
-// SmartFlowIO v1.1 - Corregido
+// SmartFlowIO v1.2 - Corregido (compatible 2D/3D)
 const SmartFlowIO = (function() {
     let _core = null;
     let _catalog = null;
@@ -33,7 +31,23 @@ const SmartFlowIO = (function() {
         'REEC': { type: 'component', internal: 'ECCENTRIC_REDUCER' }
     };
 
+    function isReady() {
+        if (!_core) {
+            console.warn('IO: Core no inicializado');
+            return false;
+        }
+        return true;
+    }
+
+    function syncState() {
+        // Compatible con ambos cores (2D y 3D)
+        if (_core.syncPhysicalData) _core.syncPhysicalData();
+        if (_core._saveState) _core._saveState();
+        if (_core._saveToHistory) _core._saveToHistory();
+    }
+
     function exportPCF() {
+        if (!isReady()) return;
         try {
             const db = _core.getDb();
             const lines = db.lines || [];
@@ -47,7 +61,7 @@ const SmartFlowIO = (function() {
             let pcf = `ISOGEN-FILES PCF.STYLE\n`;
             pcf += `UNITS-BORMM MM\nUNITS-COOR MM\n`;
             pcf += `PROJECT-IDENTIFIER ${proj}\n`;
-            pcf += `ATTRIBUTE1 SMARTFLOW_3D\nATTRIBUTE2 ${ts}\nEND-POSITION-CHECK OFF\n\n`;
+            pcf += `ATTRIBUTE1 SMARTFLOW\nATTRIBUTE2 ${ts}\nEND-POSITION-CHECK OFF\n\n`;
 
             equipos.forEach(eq => {
                 if (!eq.puertos) return;
@@ -55,13 +69,12 @@ const SmartFlowIO = (function() {
                     const rx = port.relX || 0;
                     const ry = port.relY || 0;
                     const rz = port.relZ || 0;
-                    const pos = {
-                        x: (eq.posX || 0) + rx,
-                        y: (eq.posY || 0) + ry,
-                        z: (eq.posZ || 0) + rz
-                    };
-                    const diam = port.diametro || eq.diametro || 4;
-                    const diamMM = (isNaN(diam) ? 101.6 : diam * 25.4).toFixed(2);
+                    const posX = eq.posX ?? eq.pos?.x ?? 0;
+                    const posY = eq.posY ?? eq.pos?.y ?? 0;
+                    const posZ = eq.posZ ?? eq.pos?.z ?? 0;
+                    const pos = { x: posX + rx, y: posY + ry, z: posZ + rz };
+                    const diam = port.diametro || eq.diametro || eq.diameter || 4;
+                    const diamMM = (diam * 25.4).toFixed(2);
                     const dir = port.orientacion || { dx: 0, dy: 0, dz: 1 };
                     pcf += `NOZZLE\n`;
                     pcf += `    COMPONENT-IDENTIFIER ${eq.tag}-${port.id}\n`;
@@ -72,10 +85,10 @@ const SmartFlowIO = (function() {
             });
 
             lines.forEach(line => {
-                const pts = line.points || line._cachedPoints;
+                const pts = line.points || line._cachedPoints || line.points3D;
                 if (!pts || pts.length < 2) return;
                 const diam = line.diameter || 4;
-                const diamMM = (isNaN(diam) ? 101.6 : diam * 25.4).toFixed(2);
+                const diamMM = (diam * 25.4).toFixed(2);
                 pcf += `PIPELINE-REFERENCE ${line.tag}\n`;
                 for (let i = 0; i < pts.length - 1; i++) {
                     const p1 = pts[i], p2 = pts[i + 1];
@@ -103,24 +116,28 @@ const SmartFlowIO = (function() {
             a.download = `${proj}_PCF_${ts}.pcf`;
             a.click();
             URL.revokeObjectURL(a.href);
-            _notifyUI(`PCF exportado con ${lines.length} líneas y ${equipos.length} equipos`, false);
+            _notifyUI(`PCF exportado: ${lines.length} líneas, ${equipos.length} equipos`, false);
         } catch (e) {
             _notifyUI("Error al exportar PCF: " + e.message, true);
+            console.error(e);
         }
     }
 
     function exportPDF() {
+        if (!isReady()) return;
         try {
-            if (typeof jspdf === 'undefined') {
+            // Verificar disponibilidad de jsPDF
+            const jspdfLib = window.jspdf;
+            if (!jspdfLib || !jspdfLib.jsPDF) {
                 _notifyUI("Librería jsPDF no disponible", true);
                 return;
             }
-            const canvas = document.querySelector('#canvas-container canvas');
+            const canvas = document.querySelector('#canvas-container canvas') || document.querySelector('canvas');
             if (!canvas) {
                 _notifyUI("Canvas no encontrado", true);
                 return;
             }
-            const { jsPDF } = jspdf;
+            const { jsPDF } = jspdfLib;
             const doc = new jsPDF({ orientation: 'landscape' });
             const img = canvas.toDataURL('image/png', 1.0);
             doc.addImage(img, 'PNG', 10, 10, 277, 150);
@@ -133,10 +150,12 @@ const SmartFlowIO = (function() {
             _notifyUI("PDF generado correctamente", false);
         } catch (e) {
             _notifyUI("Error al generar PDF: " + e.message, true);
+            console.error(e);
         }
     }
 
     function exportMTO() {
+        if (!isReady()) return;
         try {
             const db = _core.getDb();
             const equipos = db.equipos || [];
@@ -147,7 +166,7 @@ const SmartFlowIO = (function() {
                 items.push({
                     tipo: 'EQUIPO',
                     tag: eq.tag,
-                    descripcion: `${eq.tipo} ${eq.material || ''} ${eq.spec || ''}`,
+                    descripcion: `${eq.tipo || 'Equipo'} ${eq.material || ''} ${eq.spec || ''}`,
                     cantidad: 1,
                     unidad: 'Und'
                 });
@@ -155,7 +174,7 @@ const SmartFlowIO = (function() {
 
             const pipeMap = new Map();
             lines.forEach(line => {
-                const pts = line.points || line._cachedPoints;
+                const pts = line.points || line._cachedPoints || line.points3D;
                 if (pts && pts.length >= 2) {
                     let len = 0;
                     for (let i = 0; i < pts.length - 1; i++) {
@@ -201,7 +220,8 @@ const SmartFlowIO = (function() {
                 return;
             }
 
-            if (typeof XLSX !== 'undefined') {
+            // Intentar Excel, si no CSV
+            if (typeof XLSX !== 'undefined' && XLSX.utils) {
                 const wsData = [["Tipo", "Tag", "Descripción", "Cantidad", "Unidad"]];
                 items.forEach(item => {
                     wsData.push([item.tipo, item.tag, item.descripcion, item.cantidad, item.unidad]);
@@ -210,7 +230,7 @@ const SmartFlowIO = (function() {
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "MTO");
                 XLSX.writeFile(wb, `MTO_${window.currentProjectName || 'Proyecto'}_${Date.now()}.xlsx`);
-                _notifyUI(`MTO exportado en Excel con ${items.length} ítems`, false);
+                _notifyUI(`MTO exportado en Excel: ${items.length} ítems`, false);
             } else {
                 let csv = 'Tipo,Tag,Descripción,Cantidad,Unidad\n';
                 items.forEach(item => {
@@ -222,14 +242,16 @@ const SmartFlowIO = (function() {
                 a.download = `MTO_${window.currentProjectName || 'Proyecto'}_${Date.now()}.csv`;
                 a.click();
                 URL.revokeObjectURL(a.href);
-                _notifyUI(`MTO exportado en CSV con ${items.length} ítems`, false);
+                _notifyUI(`MTO exportado en CSV: ${items.length} ítems`, false);
             }
         } catch (e) {
             _notifyUI("Error al exportar MTO: " + e.message, true);
+            console.error(e);
         }
     }
 
     function importPCF(fileContent) {
+        if (!isReady()) return;
         try {
             const lines = fileContent.split('\n');
             let currentLine = null, puntos = [], componentes = [];
@@ -271,6 +293,8 @@ const SmartFlowIO = (function() {
                 if (currentLine && puntos.length >= 2) {
                     if (!currentLine.tag) currentLine.tag = `L-${lineasMap.size + 1}`;
                     currentLine._cachedPoints = puntos;
+                    currentLine.points = puntos;
+                    currentLine.points3D = puntos;
                     currentLine.components = componentes;
                     _core.addLine(currentLine);
                     lineasMap.set(currentLine.tag, currentLine);
@@ -280,7 +304,7 @@ const SmartFlowIO = (function() {
                 componentes = [];
             }
 
-            const blockStarters = ['PIPE', 'VALVE', 'TEE', 'TANK', 'PUMP', 'ELBOW', 'FLANGE', 'STRA', 'REDUCER', 'CAP', 'CROSS'];
+            const blockStarters = ['PIPE', 'VALVE', 'TEE', 'TANK', 'PUMP', 'ELBOW', 'FLANGE', 'STRA', 'REDUCER', 'CAP', 'CROSS', 'INSTRUMENT'];
 
             for (let raw of lines) {
                 let line = raw.trim();
@@ -313,11 +337,11 @@ const SmartFlowIO = (function() {
                         currentComp.pos = p1;
                         if (diam) currentComp.diameter = diam / 25.4;
                     }
-                } else if (line.startsWith('PCF_ELEM_SKEY') || line.startsWith('SKEY')) {
+                } else if (line.startsWith('SKEY') || line.startsWith('PCF_ELEM_SKEY')) {
                     const skey = (parts[1] || '').replace(/'/g, '');
                     if (currentComp) currentComp.skey = skey;
                     else if (currentLine) currentLine.skey = skey;
-                } else if (line.startsWith('ITEM-CODE') || line.startsWith('ITEM-CODE')) {
+                } else if (line.startsWith('ITEM-CODE')) {
                     const code = line.substring(line.indexOf('ITEM-CODE') + 9).trim().replace(/'/g, '');
                     if (currentComp) currentComp.itemCode = code;
                     else if (currentLine) currentLine.tag = code;
@@ -338,11 +362,11 @@ const SmartFlowIO = (function() {
             finalizeComp();
             finalizeLine();
 
-            _core.syncPhysicalData();
-            _core._saveState();
+            syncState();
             _notifyUI(`PCF importado: ${equiposMap.size} equipos, ${lineasMap.size} líneas`, false);
         } catch (e) {
             _notifyUI("Error al importar PCF: " + e.message, true);
+            console.error(e);
         }
     }
 
@@ -350,7 +374,7 @@ const SmartFlowIO = (function() {
         _core = coreInstance;
         _catalog = catalogInstance;
         _notifyUI = notifyFn || console.log;
-        console.log("IO v1.1 corregido listo");
+        console.log("✅ IO v1.2 listo (compatible 2D/3D)");
     }
 
     return {
