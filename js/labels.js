@@ -1,6 +1,6 @@
 
 // ============================================================
-// SMARTFLOW LABELS v1.1 - Etiquetas optimizadas para CSS2DRenderer 3D
+// SMARTFLOW LABELS v2.0 - Etiquetas optimizadas (Modo Industria 4.0)
 // Archivo: js/labels.js
 // ============================================================
 
@@ -9,12 +9,85 @@ const SmartFlowLabels = (function() {
     let _labelRenderer = null;
     let _labelObjects = [];
     let _scene = null;
+    let _camera = null;
+    let _showDetails = false; // Toggle para expandir/colapsar
+    let _visibilityDistance = 15000; // Distancia máxima para mostrar etiquetas
+
+    // Colores por tipo de equipo (esquema industrial)
+    const COLOR_MAP = {
+        'tanque_v': '#3b82f6',
+        'tanque_h': '#3b82f6',
+        'bomba': '#f59e0b',
+        'bomba_dosificacion': '#f59e0b',
+        'bomba_sumergible': '#f59e0b',
+        'torre': '#ef4444',
+        'reactor': '#8b5cf6',
+        'intercambiador': '#10b981',
+        'caldera': '#ef4444',
+        'compresor': '#f59e0b',
+        'separador': '#8b5cf6',
+        'clarificador': '#06b6d4',
+        'filtro_arena': '#06b6d4',
+        'osmosis': '#06b6d4',
+        'pasteurizador': '#10b981',
+        'homogeneizador': '#8b5cf6',
+        'tanque_acero': '#94a3b8',
+        'colector': '#facc15'
+    };
+
+    // Símbolos por tipo (corto)
+    const TYPE_SYMBOL = {
+        'tanque_v': '⬡',
+        'tanque_h': '⬡',
+        'bomba': '⚙',
+        'torre': '⬒',
+        'reactor': '⬒',
+        'intercambiador': '⫼',
+        'compresor': '⚙',
+        'colector': '☰'
+    };
 
     function init(core, labelRenderer, scene) {
         _core = core;
-        _labelRenderer = labelRenderer;
-        _scene = scene;
-        console.log('✅ Labels inicializado');
+        _labelRenderer = labelRenderer || null;
+        _scene = scene || (core && core.getScene ? core.getScene() : null);
+        _camera = core && core.getCamera ? core.getCamera() : null;
+        
+        // Cargar preferencia guardada
+        _showDetails = localStorage.getItem('smartflow_labels_detailed') === 'true';
+        
+        // Atajo de teclado: Ctrl+L para toggle
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                toggleLabelDetail();
+            }
+        });
+        
+        console.log('✅ Labels v2.0 inicializado - Industria 4.0 mode');
+    }
+
+    function toggleLabelDetail() {
+        _showDetails = !_showDetails;
+        localStorage.setItem('smartflow_labels_detailed', _showDetails);
+        crearLabelsProyecto();
+        console.log(`Labels: ${_showDetails ? 'DETALLADO' : 'COMPACTO'}`);
+    }
+
+    function getShortLabel(obj) {
+        // Solo el TAG principal, sin prefijos largos
+        return obj.tag || '?';
+    }
+
+    function getDetailedLabel(obj) {
+        let label = obj.tag || '?';
+        const diam = obj.diametro || obj.diameter || '';
+        const mat = obj.material || '';
+        
+        if (diam) label += ` ⌀${diam}"`;
+        if (mat) label += ` ${mat.substring(0,4)}`;
+        
+        return label;
     }
 
     function crearLabel(texto, posicion, colorHex = '#ffffff', fontSize = '14px', offsetY = 200) {
@@ -23,29 +96,31 @@ const SmartFlowLabels = (function() {
             return null;
         }
 
+        // Limitar texto a 20 caracteres
+        const displayText = texto.length > 20 ? texto.substring(0, 18) + '..' : texto;
+
         const div = document.createElement('div');
-        div.textContent = texto;
+        div.textContent = displayText;
         div.style.cssText = `
             color: ${colorHex};
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: ${fontSize};
             font-weight: 700;
-            text-shadow: 0 0 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.9);
-            background: rgba(0,0,0,0.6);
-            padding: 4px 10px;
-            border-radius: 4px;
-            border: 1px solid ${colorHex};
+            text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8);
+            background: rgba(10, 14, 23, 0.75);
+            padding: 3px 8px;
+            border-radius: 3px;
+            border: 1px solid ${colorHex}44;
             pointer-events: none;
             white-space: nowrap;
             user-select: none;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+            letter-spacing: 0.5px;
         `;
 
         const label = new THREE.CSS2DObject(div);
         label.position.copy(posicion);
         label.position.y += offsetY;
-        label.userData = { texto, colorHex, fontSize, offsetY, type: 'label' };
+        label.userData = { texto, colorHex, fontSize, offsetY, type: 'label', fullText: texto };
         
         _scene.add(label);
         _labelObjects.push(label);
@@ -63,17 +138,12 @@ const SmartFlowLabels = (function() {
         };
 
         const altura = equipo.altura || 1500;
-        const offsetY = altura / 2 + 300;
+        const offsetY = altura / 2 + 250;
         
-        // Color según tipo de equipo
-        let color = '#00f2ff'; // cyan por defecto
-        if (equipo.tipo?.includes('bomba')) color = '#f59e0b';
-        else if (equipo.tipo?.includes('tanque')) color = '#3b82f6';
-        else if (equipo.tipo?.includes('torre')) color = '#ef4444';
-        else if (equipo.tipo?.includes('reactor')) color = '#8b5cf6';
-        else if (equipo.tipo?.includes('intercambiador')) color = '#10b981';
-
-        return crearLabel(equipo.tag, pos, color, '16px', offsetY);
+        const color = COLOR_MAP[equipo.tipo] || '#00f2ff';
+        const texto = _showDetails ? getDetailedLabel(equipo) : getShortLabel(equipo);
+        
+        return crearLabel(texto, pos, color, _showDetails ? '13px' : '14px', offsetY);
     }
 
     function crearLabelLinea(linea) {
@@ -82,38 +152,42 @@ const SmartFlowLabels = (function() {
         const pts = linea.points || linea._cachedPoints || linea.points3D || [];
         if (pts.length < 2) return null;
         
-        // Punto medio de la línea
+        // Punto medio
         const midIdx = Math.floor(pts.length / 2);
         const pos = { x: pts[midIdx].x, y: pts[midIdx].y + 200, z: pts[midIdx].z };
         
-        return crearLabel(linea.tag, pos, '#f59e0b', '12px', 0);
+        const texto = _showDetails 
+            ? `${linea.tag} ${linea.diameter}"` 
+            : linea.tag;
+        
+        return crearLabel(texto, pos, '#f59e0b', '11px', 0);
     }
 
     function crearLabelsProyecto() {
-        if (!_core) return;
+        if (!_core || !_scene) return;
         
-        // Limpiar labels existentes
         limpiarLabels();
         
         const db = _core.getDb();
         
-        // Labels de equipos
         (db.equipos || []).forEach(eq => {
             crearLabelEquipo(eq);
         });
         
-        // Labels de líneas
         (db.lines || []).forEach(line => {
             crearLabelLinea(line);
         });
         
-        console.log(`✅ ${_labelObjects.length} labels creadas`);
+        console.log(`✅ ${_labelObjects.length} labels creadas (${_showDetails ? 'detallado' : 'compacto'})`);
     }
 
-    function actualizarLabelPosicion(label, nuevaPos, offsetY) {
-        if (!label) return;
-        label.position.copy(nuevaPos);
-        if (offsetY !== undefined) label.position.y += offsetY;
+    function actualizarVisibilidad() {
+        if (!_camera) return;
+        
+        _labelObjects.forEach(label => {
+            const distance = _camera.position.distanceTo(label.position);
+            label.visible = distance < _visibilityDistance;
+        });
     }
 
     function limpiarLabels() {
@@ -125,8 +199,16 @@ const SmartFlowLabels = (function() {
         _labelObjects = [];
     }
 
+    function setVisibilityDistance(dist) {
+        _visibilityDistance = dist;
+    }
+
     function getLabels() {
         return _labelObjects;
+    }
+
+    function isDetailedMode() {
+        return _showDetails;
     }
 
     return {
@@ -135,8 +217,11 @@ const SmartFlowLabels = (function() {
         crearLabelEquipo,
         crearLabelLinea,
         crearLabelsProyecto,
-        actualizarLabelPosicion,
         limpiarLabels,
-        getLabels
+        getLabels,
+        toggleLabelDetail,
+        actualizarVisibilidad,
+        setVisibilityDistance,
+        isDetailedMode
     };
 })();
