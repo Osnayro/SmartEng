@@ -1,6 +1,6 @@
 
 // ============================================================
-// SMARTFLOW RENDER v7.0 (Símbolos 3D + Cotas + Snap + Flujo)
+// SMARTFLOW RENDER v7.1 (Símbolos 3D + Cotas + Flujo + Cámara corregida)
 // Archivo: js/render.js
 // ============================================================
 
@@ -23,10 +23,6 @@ const SmartFlowRender = (function() {
     let _targetPos = new THREE.Vector3();
     let _targetLookAt = new THREE.Vector3();
     const _transitionSpeed = 0.08;
-    
-    // --- Snap a puertos ---
-    let _activeSnap = null;
-    const SNAP_THRESHOLD = 0.8; // en metros
     
     // --- Materiales compartidos ---
     const materials = {
@@ -72,18 +68,15 @@ const SmartFlowRender = (function() {
         const group = new THREE.Group();
         const s = size || 0.3;
         
-        // Cuerpo de válvula (caja)
         const bodyGeo = new THREE.BoxGeometry(s * 1.5, s, s);
         const body = new THREE.Mesh(bodyGeo, materials.valve);
         group.add(body);
         
-        // Volante (cilindro arriba)
         const handwheelGeo = new THREE.CylinderGeometry(s * 0.5, s * 0.5, s * 0.3, 16);
         const handwheel = new THREE.Mesh(handwheelGeo, materials.valve);
         handwheel.position.y = s * 0.7;
         group.add(handwheel);
         
-        // Eje del volante
         const stemGeo = new THREE.CylinderGeometry(s * 0.1, s * 0.1, s * 0.5, 8);
         const stem = new THREE.Mesh(stemGeo, materials.valve);
         stem.position.y = s * 0.3;
@@ -104,19 +97,16 @@ const SmartFlowRender = (function() {
         const group = new THREE.Group();
         const s = size || 0.25;
         
-        // Cuerpo principal (tubo horizontal)
         const mainGeo = new THREE.CylinderGeometry(s * 0.6, s * 0.6, s * 3, 16);
         const main = new THREE.Mesh(mainGeo, materials.tee);
         main.rotation.z = Math.PI / 2;
         group.add(main);
         
-        // Ramal (tubo vertical)
         const branchGeo = new THREE.CylinderGeometry(s * 0.5, s * 0.5, s * 1.5, 16);
         const branch = new THREE.Mesh(branchGeo, materials.tee);
         branch.position.y = s * 0.75;
         group.add(branch);
         
-        // Esfera central
         const centerGeo = new THREE.SphereGeometry(s * 0.7, 16, 16);
         const center = new THREE.Mesh(centerGeo, materials.tee);
         group.add(center);
@@ -124,7 +114,6 @@ const SmartFlowRender = (function() {
         group.position.copy(position);
         if (direction && perpendicular) {
             const dirVec = new THREE.Vector3(direction.dx, direction.dy, direction.dz);
-            const perpVec = new THREE.Vector3(perpendicular.dx, perpendicular.dy, perpendicular.dz);
             const quat = new THREE.Quaternion();
             quat.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dirVec);
             group.quaternion.copy(quat);
@@ -137,7 +126,6 @@ const SmartFlowRender = (function() {
         const group = new THREE.Group();
         const s = size || 0.25;
         
-        // Cono truncado
         const reducerGeo = new THREE.CylinderGeometry(s * 0.7, s * 0.4, s * 2, 16);
         const reducer = new THREE.Mesh(reducerGeo, materials.reducer);
         reducer.rotation.z = Math.PI / 2;
@@ -158,12 +146,10 @@ const SmartFlowRender = (function() {
         const group = new THREE.Group();
         const s = size || 0.25;
         
-        // Representación como esfera en la esquina + 2 tramos cortos
         const elbowGeo = new THREE.SphereGeometry(s * 0.6, 16, 16);
         const elbow = new THREE.Mesh(elbowGeo, materials.elbow);
         group.add(elbow);
         
-        // Anillo indicador de ángulo
         const ringGeo = new THREE.TorusGeometry(s * 0.7, s * 0.1, 8, 16);
         const ring = new THREE.Mesh(ringGeo, materials.elbow);
         group.add(ring);
@@ -177,7 +163,6 @@ const SmartFlowRender = (function() {
         const group = new THREE.Group();
         const s = size || 0.25;
         
-        // Disco de brida
         const flangeGeo = new THREE.CylinderGeometry(s * 0.8, s * 0.8, s * 0.3, 32);
         const flange = new THREE.Mesh(flangeGeo, materials.flange);
         flange.rotation.z = Math.PI / 2;
@@ -198,12 +183,10 @@ const SmartFlowRender = (function() {
         const group = new THREE.Group();
         const s = size || 0.2;
         
-        // Caja del instrumento
         const boxGeo = new THREE.BoxGeometry(s * 1.2, s * 1.5, s * 0.8);
         const box = new THREE.Mesh(boxGeo, materials.instrument);
         group.add(box);
         
-        // Dial circular
         const dialGeo = new THREE.CylinderGeometry(s * 0.5, s * 0.5, s * 0.1, 32);
         const dial = new THREE.Mesh(dialGeo, materials.instrument);
         dial.position.z = s * 0.5;
@@ -222,7 +205,6 @@ const SmartFlowRender = (function() {
         const pts = line.points || line._cachedPoints || line.points3D || [];
         if (pts.length < 2) return;
         
-        // Calcular longitudes
         let lengths = [], totalLen = 0;
         for (let i = 0; i < pts.length - 1; i++) {
             const d = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y, pts[i+1].z - pts[i].z);
@@ -264,16 +246,9 @@ const SmartFlowRender = (function() {
                 dz: direction.dz / dirLen
             };
             
-            // Perpendicular
-            let perp = { dx: -dirUnit.dy, dy: dirUnit.dx, dz: 0 };
-            const perpLen = Math.hypot(perp.dx, perp.dy, perp.dz);
-            if (perpLen < 0.1) perp = { dx: 1, dy: 0, dz: 0 };
-            else { perp.dx /= perpLen; perp.dy /= perpLen; perp.dz /= perpLen; }
-            
             const size = (line.diameter || 4) * 0.06;
             const pos3D = new THREE.Vector3(position.x / 1000, position.y / 1000, position.z / 1000);
             const dir3D = new THREE.Vector3(dirUnit.dx, dirUnit.dy, dirUnit.dz);
-            const perp3D = new THREE.Vector3(perp.dx, perp.dy, perp.dz);
             
             let symbol = null;
             const type = (comp.type || '').toUpperCase();
@@ -281,24 +256,23 @@ const SmartFlowRender = (function() {
             if (type.includes('VALVE') || type.includes('VALVULA')) {
                 symbol = createValve3D(comp, pos3D, dir3D, size);
             } else if (type.includes('TEE')) {
-                symbol = createTee3D(comp, pos3D, dir3D, perp3D, size);
+                symbol = createTee3D(comp, pos3D, dir3D, null, size);
             } else if (type.includes('REDUCER') || type.includes('REDUCTOR')) {
                 symbol = createReducer3D(comp, pos3D, dir3D, size);
             } else if (type.includes('ELBOW') || type.includes('CODO')) {
                 symbol = createElbow3D(comp, pos3D, dir3D, null, size, comp.angle || 90);
             } else if (type.includes('FLANGE') || type.includes('BRIDA')) {
                 symbol = createFlange3D(comp, pos3D, dir3D, size);
-            } else if (type.includes('GAUGE') || type.includes('METER') || type.includes('SWITCH') || type.includes('INSTRUMENT')) {
+            } else if (type.includes('GAUGE') || type.includes('METER') || type.includes('SWITCH')) {
                 symbol = createInstrument3D(comp, pos3D, type, size);
             } else {
-                // Símbolo genérico (esfera pequeña)
                 const geo = new THREE.SphereGeometry(size * 0.4, 8, 8);
                 symbol = new THREE.Mesh(geo, materials.valve);
                 symbol.position.copy(pos3D);
             }
             
             if (symbol) {
-                symbol.userData = { tag: comp.tag, type: comp.type, lineTag: line.tag };
+                symbol.userData = { tag: comp.tag, type: comp.type, lineTag: line.tag, isComponentSymbol: true };
                 _symbolGroup.add(symbol);
             }
         });
@@ -307,7 +281,6 @@ const SmartFlowRender = (function() {
     function refreshAllSymbols() {
         if (!_core) return;
         
-        // Limpiar símbolos anteriores
         while (_symbolGroup.children.length > 0) {
             _symbolGroup.remove(_symbolGroup.children[0]);
         }
@@ -324,17 +297,12 @@ const SmartFlowRender = (function() {
         const pos1 = new THREE.Vector3(p1.x / 1000, p1.y / 1000 + 0.3, p1.z / 1000);
         const pos2 = new THREE.Vector3(p2.x / 1000, p2.y / 1000 + 0.3, p2.z / 1000);
         
-        // Línea de cota
-        const mid = new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5);
-        const dir = new THREE.Vector3().subVectors(pos2, pos1);
-        const length = dir.length();
-        
         const lineGeo = new THREE.BufferGeometry().setFromPoints([pos1, pos2]);
         const lineMat = new THREE.LineBasicMaterial({ color: color, linewidth: 1, transparent: true, opacity: 0.7 });
         const line = new THREE.Line(lineGeo, lineMat);
+        line.userData = { isDimensionLine: true };
         _dimensionGroup.add(line);
         
-        // Ticks en extremos
         const tickSize = 0.15;
         const normal = new THREE.Vector3(0, -1, 0);
         const tickGeo1 = new THREE.BufferGeometry().setFromPoints([
@@ -345,10 +313,10 @@ const SmartFlowRender = (function() {
         ]);
         const tick1 = new THREE.Line(tickGeo1, lineMat);
         const tick2 = new THREE.Line(tickGeo2, lineMat);
+        tick1.userData = { isDimensionLine: true };
+        tick2.userData = { isDimensionLine: true };
         _dimensionGroup.add(tick1);
         _dimensionGroup.add(tick2);
-        
-        return { mid, length };
     }
     
     function refreshAllDimensions() {
@@ -390,7 +358,6 @@ const SmartFlowRender = (function() {
             };
             const dirLen = Math.hypot(dir.x, dir.y, dir.z) || 1;
             
-            // Cono como flecha
             const coneGeo = new THREE.ConeGeometry(0.08, 0.2, 8, 8);
             const cone = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ 
                 color: 0x00f2ff, 
@@ -400,14 +367,13 @@ const SmartFlowRender = (function() {
             }));
             cone.position.set(mid.x, mid.y + 0.15, mid.z);
             
-            // Orientar en dirección del flujo
             const dirVec = new THREE.Vector3(dir.x / dirLen, dir.y / dirLen, dir.z / dirLen);
             const upVec = new THREE.Vector3(0, 1, 0);
             const quat = new THREE.Quaternion();
             quat.setFromUnitVectors(upVec, dirVec);
             cone.quaternion.copy(quat);
             
-            cone.userData = { type: 'flowArrow', lineTag: line.tag };
+            cone.userData = { type: 'flowArrow', lineTag: line.tag, isFlowArrow: true };
             _flowArrowGroup.add(cone);
         }
     }
@@ -442,6 +408,7 @@ const SmartFlowRender = (function() {
         _isAnimating = true;
     }
     
+    // ==================== 7. FIT CAMERA TO ALL EQUIPMENTS (CORREGIDO v7.1) ====================
     function fitCameraToEquipments() {
         const scene = _core.getScene();
         const camera = _core.getCamera();
@@ -449,19 +416,61 @@ const SmartFlowRender = (function() {
         if (!scene || !camera || !controls) return;
         
         const bounds = new THREE.Box3();
+        let hasValidObject = false;
+        
         scene.traverse((child) => {
-            if (child.isMesh && child.visible && !child.userData.type) {
+            if (child.isMesh && child.visible && child.geometry) {
+                // Excluir símbolos, cotas y flechas
+                if (child.userData && (child.userData.isComponentSymbol || 
+                    child.userData.isDimensionLine || 
+                    child.userData.isFlowArrow)) {
+                    return;
+                }
+                // Excluir grupos de símbolos
+                if (child.parent === _symbolGroup || 
+                    child.parent === _dimensionGroup || 
+                    child.parent === _flowArrowGroup) {
+                    return;
+                }
+                // Excluir grid
+                if (child instanceof THREE.GridHelper) return;
+                // Excluir CSS2DObjects
+                if (child instanceof THREE.CSS2DObject) return;
+                
+                if (!child.position) return;
+                
+                const box = new THREE.Box3().setFromObject(child);
+                const size = box.getSize(new THREE.Vector3());
+                
+                // Ignorar objetos demasiado grandes
+                if (size.x > 100000 || size.y > 100000 || size.z > 100000) return;
+                
+                // Ignorar objetos diminutos en el origen
+                if (size.x < 0.01 && size.y < 0.01 && size.z < 0.01 && 
+                    child.position.x === 0 && child.position.y === 0 && child.position.z === 0) return;
+                
                 bounds.expandByObject(child);
+                hasValidObject = true;
             }
         });
         
-        if (bounds.isEmpty()) return;
+        if (!hasValidObject) {
+            camera.position.set(15, 10, 15);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            return;
+        }
         
         const center = bounds.getCenter(new THREE.Vector3());
         const size = bounds.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
+        
+        const effectiveMaxDim = Math.max(maxDim, 5);
         const fov = camera.fov * (Math.PI / 180);
-        let distance = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+        let distance = Math.abs(effectiveMaxDim / 2 / Math.tan(fov / 2)) * 1.8;
+        
+        distance = Math.min(distance, 100);
+        distance = Math.max(distance, 5);
         
         const angleRad = 45 * (Math.PI / 180);
         camera.position.set(
@@ -473,7 +482,7 @@ const SmartFlowRender = (function() {
         controls.update();
     }
     
-    // ==================== 7. RESALTADO DE SELECCIÓN ====================
+    // ==================== 8. RESALTADO DE SELECCIÓN ====================
     function updateSelectionHighlight() {
         const selected = _core.getSelected();
         
@@ -512,7 +521,7 @@ const SmartFlowRender = (function() {
         }
     }
     
-    // ==================== 8. VISTAS PREDEFINIDAS ====================
+    // ==================== 9. VISTAS PREDEFINIDAS ====================
     function setView(type) {
         const camera = _core.getCamera();
         const controls = _core.getControls();
@@ -533,7 +542,7 @@ const SmartFlowRender = (function() {
         }
     }
     
-    // ==================== 9. PANEL DE INFORMACIÓN ====================
+    // ==================== 10. PANEL DE INFORMACIÓN ====================
     function createInfoPanel() {
         let panel = document.getElementById('selectionInfo');
         if (!panel) {
@@ -588,7 +597,7 @@ const SmartFlowRender = (function() {
         });
     }
     
-    // ==================== 10. INICIALIZACIÓN ====================
+    // ==================== 11. INICIALIZACIÓN ====================
     function init(coreInstance) {
         _core = coreInstance;
         if (!_core) return;
@@ -596,15 +605,16 @@ const SmartFlowRender = (function() {
         setupEffects();
         initUIBridge();
         
-        // Agregar grupos a la escena
         const scene = _core.getScene();
         if (scene) {
+            _symbolGroup.userData = { isSymbolGroup: true };
+            _dimensionGroup.userData = { isDimensionGroup: true };
+            _flowArrowGroup.userData = { isFlowArrowGroup: true };
             scene.add(_symbolGroup);
             scene.add(_dimensionGroup);
             scene.add(_flowArrowGroup);
         }
         
-        // Reemplazar bucle de animación
         const originalAnimate = _core.getAnimate();
         if (originalAnimate) {
             const newAnimate = () => {
@@ -624,7 +634,6 @@ const SmartFlowRender = (function() {
                 if (_labelRenderer && scene && _core.getCamera()) {
                     _labelRenderer.render(scene, _core.getCamera());
                 }
-                // Actualizar visibilidad de labels
                 if (typeof SmartFlowLabels !== 'undefined' && SmartFlowLabels.actualizarVisibilidad) {
                     SmartFlowLabels.actualizarVisibilidad();
                 }
@@ -633,14 +642,12 @@ const SmartFlowRender = (function() {
             _core.setAnimate(newAnimate);
         }
         
-        // Refrescar símbolos después de cargar
         setTimeout(() => {
             refreshAllSymbols();
             refreshAllDimensions();
             refreshAllFlowArrows();
         }, 1000);
         
-        // Escuchar cambios para refrescar símbolos
         _core.subscribe(() => {
             setTimeout(() => {
                 refreshAllSymbols();
@@ -650,7 +657,7 @@ const SmartFlowRender = (function() {
         });
         
         window.set3DView = setView;
-        console.log("✔ SmartFlowRender v7.0 listo (Símbolos 3D + Cotas + Flujo)");
+        console.log("✔ SmartFlowRender v7.1 listo (Cámara corregida)");
     }
     
     function setLabelRenderer(lr) {
