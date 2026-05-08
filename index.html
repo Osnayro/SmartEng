@@ -196,6 +196,8 @@
         .btn-warning:hover { background: #e2a83a; }
         .btn-speak { background: #7c3aed; border-color: #8b5cf6; }
         .btn-speak:hover { background: #8b5cf6; }
+        .btn-capture { background: #0f766e; border-color: #14b8a6; }
+        .btn-capture:hover { background: #14b8a6; }
 
         /* Canvas container (Three.js) */
         #canvas-container {
@@ -312,12 +314,264 @@
         }
         .elevation-panel input { width: 70px; background: #0f0f17; border: 1px solid #3a3a4a; color: white; border-radius: 4px; padding: 4px 6px; }
 
+        /* ==================== MODO CAPTURA ==================== */
+        body.capture-mode {
+            overflow: hidden !important;
+        }
+
+        body.capture-mode .toolbar,
+        body.capture-mode .status-bar,
+        body.capture-mode .property-panel,
+        body.capture-mode .command-panel,
+        body.capture-mode .tools-panel,
+        body.capture-mode .elevation-panel,
+        body.capture-mode .notification,
+        body.capture-mode #mobile-menu-panel,
+        body.capture-mode #mobile-menu-toggle,
+        body.capture-mode #selectionInfo,
+        body.capture-mode #splash-screen,
+        body.capture-mode #welcome-panel,
+        body.capture-mode #project-name-modal {
+            display: none !important;
+        }
+
+        body.capture-mode #canvas-container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body.capture-mode #btnExitCapture {
+            display: flex !important;
+        }
+
+        body.capture-mode #canvas-container {
+            animation: captureZoom 0.3s ease-out;
+        }
+
+        @keyframes captureZoom {
+            from { transform: scale(0.95); opacity: 0.5; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* ==================== MODO MÓVIL (Pantallas < 768px) ==================== */
         @media (max-width: 768px) {
-            .toolbar button { font-size: 10px; padding: 6px 8px; }
-            .property-panel { width: 260px; right: 10px; }
-            .welcome-container { width: 90%; padding: 30px 20px; }
-            .home-logo-img { width: 110px; }
-            .corp-name, .user-name { font-size: 14px; }
+            
+            .toolbar {
+                padding: 6px 8px !important;
+                gap: 4px !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                justify-content: flex-start !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .toolbar-logo {
+                margin-right: 4px !important;
+            }
+            
+            .toolbar-logo img {
+                height: 20px !important;
+            }
+            
+            .toolbar-title {
+                font-size: 12px !important;
+                letter-spacing: 1px !important;
+            }
+            
+            .toolbar button {
+                display: none !important;
+                font-size: 9px !important;
+                padding: 4px 6px !important;
+                white-space: nowrap !important;
+            }
+            
+            .toolbar #btnCommand,
+            .toolbar #btnCapture,
+            .toolbar #btnUndo,
+            .toolbar #btnRedo,
+            .toolbar #btnSave {
+                display: inline-block !important;
+                font-size: 10px !important;
+                padding: 5px 8px !important;
+            }
+            
+            #mobile-menu-toggle {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                background: var(--button-bg);
+                border: 1px solid var(--button-border);
+                color: white;
+                font-size: 20px;
+                width: 36px;
+                height: 36px;
+                border-radius: 4px;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+            
+            #mobile-menu-panel {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(10, 14, 23, 0.98);
+                z-index: 5000;
+                padding: 20px;
+                overflow-y: auto;
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            #mobile-menu-panel.open {
+                display: flex !important;
+            }
+            
+            #mobile-menu-panel .menu-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+                border-bottom: 1px solid var(--accent-cyan);
+                padding-bottom: 10px;
+            }
+            
+            #mobile-menu-panel .menu-header span {
+                color: var(--accent-cyan);
+                font-size: 18px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+            
+            #mobile-menu-panel .menu-header button {
+                background: none;
+                border: 1px solid var(--accent-cyan);
+                color: var(--accent-cyan);
+                font-size: 24px;
+                width: 40px;
+                height: 40px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            
+            #mobile-menu-panel button {
+                display: block !important;
+                width: 100%;
+                padding: 14px !important;
+                font-size: 14px !important;
+                text-align: left;
+                margin-bottom: 4px;
+            }
+            
+            #mobile-menu-panel .menu-section {
+                color: var(--accent-cyan);
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                margin-top: 15px;
+                margin-bottom: 5px;
+                padding-left: 5px;
+            }
+            
+            #canvas-container {
+                flex: 1 !important;
+            }
+            
+            .property-panel {
+                width: 260px !important;
+                right: 5px !important;
+                top: 50px !important;
+                max-height: 60vh !important;
+                font-size: 11px !important;
+                transform: translateX(105%) !important;
+                transition: transform 0.3s ease !important;
+            }
+            
+            .property-panel.mobile-visible {
+                transform: translateX(0) !important;
+            }
+            
+            .command-panel {
+                width: 95% !important;
+                max-width: none !important;
+                left: 2.5% !important;
+                bottom: 5px !important;
+                border-radius: 12px 12px 0 0 !important;
+            }
+            
+            .command-panel textarea {
+                font-size: 16px !important;
+                min-height: 100px !important;
+            }
+            
+            .tools-panel {
+                display: none !important;
+            }
+            
+            .elevation-panel {
+                display: none !important;
+            }
+            
+            .status-bar {
+                font-size: 8px !important;
+                padding: 4px 8px !important;
+            }
+            
+            .notification {
+                width: 90% !important;
+                font-size: 12px !important;
+                padding: 8px 12px !important;
+            }
+            
+            .splash-content {
+                width: 280px !important;
+            }
+            
+            .hex-container {
+                width: 80px !important;
+                height: 80px !important;
+            }
+            
+            .splash-title {
+                font-size: 22px !important;
+                letter-spacing: 4px !important;
+            }
+            
+            .welcome-container {
+                width: 90% !important;
+                padding: 25px 15px !important;
+            }
+            
+            .corp-name, .user-name {
+                font-size: 12px !important;
+            }
+            
+            .home-logo-img {
+                width: 90px !important;
+            }
+            
+            .welcome-btn {
+                padding: 14px 18px !important;
+                font-size: 15px !important;
+                letter-spacing: 1px !important;
+            }
+            
+            button {
+                min-height: 36px !important;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .toolbar::-webkit-scrollbar {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -377,6 +631,10 @@
             <img src="img/logo.PNG" alt="Logo" style="height: 28px;" onerror="this.style.display='none'">
             <span class="toolbar-title">SmartEngp 3D</span>
         </div>
+        
+        <!-- Botón menú hamburguesa (solo visible en móvil) -->
+        <button id="mobile-menu-toggle" style="display:none;" aria-label="Menú">☰</button>
+        
         <button id="btnOpen" aria-label="Abrir proyecto">📂 Abrir</button>
         <button id="btnSave" aria-label="Guardar proyecto">💾 Guardar</button>
         <button id="btnExportProject" aria-label="Exportar proyecto">📤 Exportar Proy</button>
@@ -399,10 +657,64 @@
         <button id="btnSpeakSummary" class="btn-speak" aria-label="Leer resumen del proyecto">📢 Resumen</button>
         <button id="btnRecalc" aria-label="Recalcular">🔄 Recalcular</button>
         <button id="btnToggleCatalog" aria-label="Mostrar catálogo">📦 Catálogo</button>
+        <button id="btnCapture" class="btn-capture" aria-label="Modo captura">📸 Captura</button>
     </div>
 
-    <!-- Contenedor principal: aquí Three.js creará el canvas -->
+    <!-- Panel de menú móvil -->
+    <div id="mobile-menu-panel">
+        <div class="menu-header">
+            <span>SmartEngp 3D</span>
+            <button id="mobile-menu-close" aria-label="Cerrar menú">✕</button>
+        </div>
+        
+        <div class="menu-section">📂 Archivo</div>
+        <button id="m-btnOpen">📂 Abrir Proyecto</button>
+        <button id="m-btnSave">💾 Guardar Proyecto</button>
+        <button id="m-btnExportProject">📤 Exportar</button>
+        <button id="m-btnImportProject">📥 Importar</button>
+        <button id="m-btnCapture">📸 Modo Captura</button>
+        
+        <div class="menu-section">🎥 Vistas</div>
+        <button id="m-btnReset">🎥 Isométrico</button>
+        <button id="m-btnTopView">⬇️ Vista Superior</button>
+        <button id="m-btnFrontView">➡️ Vista Frontal</button>
+        <button id="m-btnSideView">⬅️ Vista Lateral</button>
+        
+        <div class="menu-section">🏭 Crear</div>
+        <button id="m-btnAddTank">🏭 Añadir Tanque</button>
+        <button id="m-btnAddPump">⚙️ Añadir Bomba</button>
+        
+        <div class="menu-section">📊 Exportar</div>
+        <button id="m-btnMTO">📊 Exportar MTO</button>
+        <button id="m-btnPDF">📄 Exportar PDF</button>
+        <button id="m-btnExportPCF">📦 Exportar PCF</button>
+        
+        <div class="menu-section">⚙️ Herramientas</div>
+        <button id="m-btnUndo">↩️ Deshacer</button>
+        <button id="m-btnRedo">↪️ Rehacer</button>
+        <button id="m-btnRecalc">🔄 Recalcular</button>
+        <button id="m-btnSpeakSummary">📢 Resumen</button>
+        <button id="m-btnCommand">🤖 Comandos</button>
+    </div>
+
+    <!-- Contenedor principal -->
     <div id="canvas-container" class="canvas-container"></div>
+
+    <!-- Botón salir modo captura (inicialmente oculto) -->
+    <button id="btnExitCapture" style="
+        display: none;
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 10000;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        border: 1px solid #00f2ff;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+    " aria-label="Salir del modo captura">✕ Salir</button>
 
     <!-- Panel de propiedades lateral -->
     <div id="side-panel" class="property-panel hidden">
@@ -455,8 +767,7 @@
         <button id="btnSetElev" style="padding:2px 8px;" aria-label="Establecer elevación">Set</button>
     </div>
 
-    <!-- ========== MÓDULOS DE LA APLICACIÓN (ORDEN CORRECTO) ========== -->
-    <!-- ADAPTADOR: Debe cargar ANTES del core para traducir formatos 2D/3D -->
+    <!-- Módulos de la aplicación (orden correcto) -->
     <script src="js/smartflow-adapter.js"></script>
     <script src="js/core.js"></script>
     <script src="js/catalog.js"></script>
@@ -488,7 +799,7 @@
             }
         }
 
-        // Stub de accesibilidad para commands.js (se reemplazará por el módulo real)
+        // Stub de accesibilidad para commands.js
         if (!window.SmartFlowAccessibility) {
             window.SmartFlowAccessibility = {
                 isVoiceEnabled: () => window.voiceEnabled,
@@ -496,6 +807,148 @@
                 processAccessibilityCommand: (cmd) => false
             };
         }
+
+        // ==================== MODO CAPTURA ====================
+        (function() {
+            const btnCapture = document.getElementById('btnCapture');
+            const btnExitCapture = document.getElementById('btnExitCapture');
+            let captureMode = false;
+            
+            function enterCaptureMode() {
+                captureMode = true;
+                document.body.classList.add('capture-mode');
+                
+                setTimeout(() => {
+                    if (typeof SmartFlowCore !== 'undefined') {
+                        const renderer = SmartFlowCore.getRenderer();
+                        const camera = SmartFlowCore.getCamera();
+                        if (renderer && camera) {
+                            renderer.setSize(window.innerWidth, window.innerHeight);
+                            camera.aspect = window.innerWidth / window.innerHeight;
+                            camera.updateProjectionMatrix();
+                        }
+                    }
+                    if (typeof SmartFlowRender !== 'undefined' && SmartFlowRender.fitCameraToEquipments) {
+                        SmartFlowRender.fitCameraToEquipments();
+                    }
+                }, 200);
+                
+                if (typeof SmartFlowLabels !== 'undefined') {
+                    SmartFlowLabels.crearLabelsProyecto();
+                }
+            }
+            
+            function exitCaptureMode() {
+                captureMode = false;
+                document.body.classList.remove('capture-mode');
+                
+                setTimeout(() => {
+                    const container = document.getElementById('canvas-container');
+                    if (container && typeof SmartFlowCore !== 'undefined') {
+                        const renderer = SmartFlowCore.getRenderer();
+                        const camera = SmartFlowCore.getCamera();
+                        if (renderer && camera) {
+                            const w = container.clientWidth;
+                            const h = container.clientHeight;
+                            renderer.setSize(w, h);
+                            camera.aspect = w / h;
+                            camera.updateProjectionMatrix();
+                        }
+                    }
+                }, 200);
+            }
+            
+            if (btnCapture) {
+                btnCapture.addEventListener('click', enterCaptureMode);
+            }
+            
+            if (btnExitCapture) {
+                btnExitCapture.addEventListener('click', exitCaptureMode);
+            }
+            
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && captureMode) {
+                    exitCaptureMode();
+                }
+            });
+            
+            window.addEventListener('resize', function() {
+                if (captureMode && typeof SmartFlowCore !== 'undefined') {
+                    const renderer = SmartFlowCore.getRenderer();
+                    const camera = SmartFlowCore.getCamera();
+                    if (renderer && camera) {
+                        renderer.setSize(window.innerWidth, window.innerHeight);
+                        camera.aspect = window.innerWidth / window.innerHeight;
+                        camera.updateProjectionMatrix();
+                    }
+                }
+            });
+        })();
+
+        // ==================== MENÚ MÓVIL ====================
+        (function() {
+            const toggle = document.getElementById('mobile-menu-toggle');
+            const panel = document.getElementById('mobile-menu-panel');
+            const close = document.getElementById('mobile-menu-close');
+            
+            if (!toggle || !panel || !close) return;
+            
+            toggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                panel.classList.add('open');
+            });
+            
+            close.addEventListener('click', function() {
+                panel.classList.remove('open');
+            });
+            
+            panel.addEventListener('click', function(e) {
+                if (e.target === panel) {
+                    panel.classList.remove('open');
+                }
+            });
+            
+            panel.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    setTimeout(() => panel.classList.remove('open'), 300);
+                });
+            });
+            
+            const mobileMap = {
+                'm-btnOpen': 'btnOpen',
+                'm-btnSave': 'btnSave',
+                'm-btnExportProject': 'btnExportProject',
+                'm-btnImportProject': 'btnImportProject',
+                'm-btnReset': 'btnReset',
+                'm-btnTopView': 'btnTopView',
+                'm-btnFrontView': 'btnFrontView',
+                'm-btnSideView': 'btnSideView',
+                'm-btnAddTank': 'btnAddTank',
+                'm-btnAddPump': 'btnAddPump',
+                'm-btnMTO': 'btnMTO',
+                'm-btnPDF': 'btnPDF',
+                'm-btnExportPCF': 'btnExportPCF',
+                'm-btnUndo': 'btnUndo',
+                'm-btnRedo': 'btnRedo',
+                'm-btnRecalc': 'btnRecalc',
+                'm-btnSpeakSummary': 'btnSpeakSummary',
+                'm-btnCommand': 'btnCommand',
+                'm-btnCapture': 'btnCapture'
+            };
+            
+            setTimeout(() => {
+                for (let [mobileId, desktopId] of Object.entries(mobileMap)) {
+                    const mobileBtn = document.getElementById(mobileId);
+                    const desktopBtn = document.getElementById(desktopId);
+                    if (mobileBtn && desktopBtn) {
+                        mobileBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            desktopBtn.click();
+                        });
+                    }
+                }
+            }, 1000);
+        })();
 
         // Manejo de splash, welcome y modal
         window.addEventListener('load', function() {
