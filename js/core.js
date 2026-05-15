@@ -1,6 +1,6 @@
 
 // ============================================================
-// SMARTFLOW CORE v6.5 (Expone _animate para render)
+// SMARTFLOW CORE v6.6 – Formato de exportación unificado 2D/3D
 // Archivo: js/core.js
 // ============================================================
 
@@ -18,7 +18,7 @@ const SmartFlowCore = (function() {
     let _db = {
         equipos: [],
         lines: [],
-        metadata: { version: "6.5", lastModified: Date.now() }
+        metadata: { version: "6.6", lastModified: Date.now() }
     };
     
     // --- Mapa visual: tag -> objeto 3D ---
@@ -159,7 +159,7 @@ const SmartFlowCore = (function() {
             
             const saved = localStorage.getItem('smartflow_project');
             if (saved) try { _db = JSON.parse(saved); if (_visualFactory) _refreshVisuals(); } catch(e) {}
-            console.log("✔ Core Three.js v6.5 listo");
+            console.log("✔ Core Three.js v6.6 listo (compatible 2D/3D)");
             _notify();
         },
         
@@ -298,17 +298,34 @@ const SmartFlowCore = (function() {
         getControls: () => _controls,
         getVisualMesh: (tag) => _visualMap.get(tag),
         
-        // --- Persistencia ---
-        exportProject: function() { return JSON.stringify(_db); },
+        // --- Persistencia (COMPATIBLE 2D/3D) ---
+        exportProject: function() {
+            return JSON.stringify({
+                equipos: _db.equipos,
+                lines: _db.lines
+            });
+        },
         importState: function(state) {
-            // 🔄 ADAPTADOR: Convierte datos 2D a formato 3D antes de importar
-            const cleanData = SmartFlowAdapter.ensure3DReady(state);
-            if (!cleanData || !cleanData.equipos || !cleanData.lines) return false;
+            // Acepta string JSON o objeto
+            const data = typeof state === 'string' ? JSON.parse(state) : state;
+            
+            // Soportar formato antiguo (con envoltura "data") y nuevo (plano)
+            let equipos = data.equipos || (data.data && data.data.equipos) || [];
+            let lines = data.lines || (data.data && data.data.lines) || [];
+            
+            // Normalización ligera
+            if (!Array.isArray(equipos)) equipos = [];
+            if (!Array.isArray(lines)) lines = [];
+            
             _visualMap.forEach(obj => _scene.remove(obj));
             _visualMap.clear();
-            _db = _deepClone(cleanData);
+            
+            _db.equipos = _deepClone(equipos);
+            _db.lines = _deepClone(lines);
+            
             if (_visualFactory) _refreshVisuals();
-            _saveToHistory(); _notify();
+            _saveToHistory();
+            _notify();
             return true;
         },
         
