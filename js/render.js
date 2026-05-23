@@ -1,9 +1,11 @@
+
 // ============================================================
-// SMARTFLOW RENDER v7.2 (Símbolos 3D + Cotas + Flujo + Cámara corregida)
+// SMARTFLOW RENDER v8.0 (Símbolos 3D + Cotas + Flujo + CÁMARA ORTOGRÁFICA ISOMÉTRICA)
 // Archivo: js/render.js
-// Cambios: compatibilidad con Core v5.4, Router v3.8.4,
-//          suscripción a eventos modelChanged, soporte plataformas,
-//          uso de findObjectByTag/getLinePoints del Core
+// Cambios: 
+//   - Agregado soporte para cámara ortográfica (verdadera proyección isométrica)
+//   - Toggle entre perspectiva y ortográfica
+//   - Compatibilidad con Core v5.4+
 // ============================================================
 
 const SmartFlowRender = (function() {
@@ -24,6 +26,176 @@ const SmartFlowRender = (function() {
     const _transitionSpeed = 0.08;
     
     let _debounceTimer = null;
+    
+    // ==================== CÁMARA ORTOGRÁFICA ISOMÉTRICA ====================
+    let _orthoCamera = null;
+    let _perspCamera = null;
+    let _isOrthoMode = false;
+    let _originalCamera = null;
+    
+    // Configuración de la cámara ortográfica
+    const ORTHO_SIZE = 14;        // Tamaño de vista en unidades (metros)
+    const ORTHO_ZOOM_DEFAULT = 1.2;
+    const ORTHO_POSITION = { x: 10, y: 10, z: 10 };  // Posición isométrica clásica
+    
+    function createOrthoCamera(containerWidth, containerHeight) {
+        const aspect = containerWidth / containerHeight;
+        
+        const camera = new THREE.OrthographicCamera(
+            -ORTHO_SIZE * aspect, ORTHO_SIZE * aspect,
+            ORTHO_SIZE, -ORTHO_SIZE,
+            0.1, 1000
+        );
+        
+        // Posición isométrica clásica: ángulos 45° y 35.264°
+        camera.position.set(ORTHO_POSITION.x, ORTHO_POSITION.y, ORTHO_POSITION.z);
+        camera.lookAt(0, 0, 0);
+        camera.zoom = ORTHO_ZOOM_DEFAULT;
+        camera.updateProjectionMatrix();
+        
+        return camera;
+    }
+    
+    function switchToOrthoMode() {
+        if (!_core) return false;
+        
+        // Obtener cámara actual (perspectiva)
+        const currentCam = _core.getCamera();
+        if (!currentCam) return false;
+        
+        // Guardar cámara perspectiva original si no existe
+        if (!_perspCamera) {
+            _perspCamera = currentCam;
+        }
+        
+        // Crear cámara ortográfica
+        const container = document.getElementById('canvas-container');
+        const width = container ? container.clientWidth : window.innerWidth;
+        const height = container ? container.clientHeight : window.innerHeight;
+        _orthoCamera = createOrthoCamera(width, height);
+        
+        // Calcular centro de la escena para mantener la vista
+        const center = calculateSceneCenter();
+        if (center) {
+            _orthoCamera.position.set(
+                center.x + ORTHO_POSITION.x,
+                center.y + ORTHO_POSITION.y,
+                center.z + ORTHO_POSITION.z
+            );
+            _orthoCamera.lookAt(center);
+        }
+        
+        // Reemplazar cámara en el core
+        if (typeof _core.setCamera === 'function') {
+            _core.setCamera(_orthoCamera);
+        }
+        
+        // Actualizar controles
+        const controls = _core.getControls();
+        if (controls) {
+            controls.object = _orthoCamera;
+            controls.target.set(center ? center.x : 0, center ? center.y : 0, center ? center.z : 0);
+            controls.update();
+        }
+        
+        _isOrthoMode = true;
+        console.log('✅ Modo ISOMÉTRICO ORTOGRÁFICO activado');
+        
+        // Notificar cambio de cámara
+        if (typeof _core.emit === 'function') {
+            _core.emit('cameraChanged', { mode: 'ortho', camera: _orthoCamera });
+        }
+        
+        return true;
+    }
+    
+    function switchToPerspMode() {
+        if (!_core || !_perspCamera) return false;
+        
+        // Restaurar cámara perspectiva
+        if (typeof _core.setCamera === 'function') {
+            _core.setCamera(_perspCamera);
+        }
+        
+        // Actualizar controles
+        const controls = _core.getControls();
+        if (controls) {
+            controls.object = _perspCamera;
+            controls.update();
+        }
+        
+        _isOrthoMode = false;
+        console.log('✅ Modo PERSPECTIVA activado');
+        
+        // Notificar cambio de cámara
+        if (typeof _core.emit === 'function') {
+            _core.emit('cameraChanged', { mode: 'perspective', camera: _perspCamera });
+        }
+        
+        return true;
+    }
+    
+    function toggleCameraMode() {
+        if (_isOrthoMode) {
+            return switchToPerspMode();
+        } else {
+            return switchToOrthoMode();
+        }
+    }
+    
+    function isOrthoMode() {
+        return _isOrthoMode;
+    }
+    
+    function handleWindowResize() {
+        if (!_isOrthoMode || !_orthoCamera) return;
+        
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+        
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        const aspect = width / height;
+        
+        _orthoCamera.left = -ORTHO_SIZE * aspect;
+        _orthoCamera.right = ORTHO_SIZE * aspect;
+        _orthoCamera.top = ORTHO_SIZE;
+        _orthoCamera.bottom = -ORTHO_SIZE;
+        _orthoCamera.updateProjectionMatrix();
+    }
+    
+    function calculateSceneCenter() {
+        const scene = _core.getScene();
+        if (!scene) return null;
+        
+        const bounds = new THREE.Box3();
+        let hasValidObject = false;
+        
+        scene.traverse((child) => {
+            if (child.isMesh && child.visible && child.geometry) {
+                if (child.userData && (child.userData.isComponentSymbol || 
+                    child.userData.isDimensionLine || 
+                    child.userData.isFlowArrow)) {
+                    return;
+                }
+                if (child.parent === _symbolGroup || 
+                    child.parent === _dimensionGroup || 
+                    child.parent === _flowArrowGroup) {
+                    return;
+                }
+                if (child instanceof THREE.GridHelper) return;
+                if (child instanceof THREE.CSS2DObject) return;
+                
+                bounds.expandByObject(child);
+                hasValidObject = true;
+            }
+        });
+        
+        if (!hasValidObject) return null;
+        return bounds.getCenter(new THREE.Vector3());
+    }
+    
+    // ==================== FIN CÁMARA ORTOGRÁFICA ====================
     
     const materials = {
         valve: new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.4, roughness: 0.3 }),
@@ -452,12 +624,24 @@ const SmartFlowRender = (function() {
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180);
-        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.8;
-        const direction = new THREE.Vector3().subVectors(camera.position, center).normalize();
-        _targetPos.copy(center).add(direction.multiplyScalar(cameraZ));
-        _targetLookAt.copy(center);
-        _isAnimating = true;
+        
+        if (_isOrthoMode && _orthoCamera) {
+            // Modo ortográfico: ajustar zoom y posición
+            const targetZoom = Math.max(0.8, Math.min(3, ORTHO_SIZE / Math.max(maxDim, 0.1)));
+            _orthoCamera.zoom = targetZoom;
+            _orthoCamera.position.set(center.x + ORTHO_POSITION.x, center.y + ORTHO_POSITION.y, center.z + ORTHO_POSITION.z);
+            _orthoCamera.lookAt(center);
+            _orthoCamera.updateProjectionMatrix();
+            controls.target.copy(center);
+        } else {
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.8;
+            const direction = new THREE.Vector3().subVectors(camera.position, center).normalize();
+            _targetPos.copy(center).add(direction.multiplyScalar(cameraZ));
+            _targetLookAt.copy(center);
+            _isAnimating = true;
+        }
+        controls.update();
     }
     
     function fitCameraToEquipments() {
@@ -484,24 +668,16 @@ const SmartFlowRender = (function() {
                 if (child instanceof THREE.GridHelper) return;
                 if (child instanceof THREE.CSS2DObject) return;
                 
-                if (!child.position) return;
-                
                 const box = new THREE.Box3().setFromObject(child);
-                const size = box.getSize(new THREE.Vector3());
-                
-                if (size.x > 100000 || size.y > 100000 || size.z > 100000) return;
-                if (size.x < 0.01 && size.y < 0.01 && size.z < 0.01 && 
-                    child.position.x === 0 && child.position.y === 0 && child.position.z === 0) return;
-                
-                bounds.expandByObject(child);
-                hasValidObject = true;
+                if (box.getSize(new THREE.Vector3()).length() > 0.01) {
+                    bounds.expandByObject(child);
+                    hasValidObject = true;
+                }
             }
         });
         
         if (!hasValidObject) {
-            camera.position.set(15, 10, 15);
-            controls.target.set(0, 0, 0);
-            controls.update();
+            setView('iso');
             return;
         }
         
@@ -509,20 +685,28 @@ const SmartFlowRender = (function() {
         const size = bounds.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         
-        const effectiveMaxDim = Math.max(maxDim, 5);
-        const fov = camera.fov * (Math.PI / 180);
-        let distance = Math.abs(effectiveMaxDim / 2 / Math.tan(fov / 2)) * 1.8;
-        
-        distance = Math.min(distance, 100);
-        distance = Math.max(distance, 5);
-        
-        const angleRad = 45 * (Math.PI / 180);
-        camera.position.set(
-            center.x + distance * Math.sin(angleRad),
-            center.y + distance * 0.6,
-            center.z + distance * Math.cos(angleRad)
-        );
-        controls.target.copy(center);
+        if (_isOrthoMode && _orthoCamera) {
+            const targetZoom = Math.max(0.8, Math.min(3, ORTHO_SIZE / Math.max(maxDim, 0.1)));
+            _orthoCamera.zoom = targetZoom;
+            _orthoCamera.position.set(center.x + ORTHO_POSITION.x, center.y + ORTHO_POSITION.y, center.z + ORTHO_POSITION.z);
+            _orthoCamera.lookAt(center);
+            _orthoCamera.updateProjectionMatrix();
+            controls.target.copy(center);
+        } else {
+            const effectiveMaxDim = Math.max(maxDim, 5);
+            const fov = camera.fov * (Math.PI / 180);
+            let distance = Math.abs(effectiveMaxDim / 2 / Math.tan(fov / 2)) * 1.8;
+            distance = Math.min(distance, 100);
+            distance = Math.max(distance, 5);
+            
+            const angleRad = 45 * (Math.PI / 180);
+            camera.position.set(
+                center.x + distance * Math.sin(angleRad),
+                center.y + distance * 0.6,
+                center.z + distance * Math.cos(angleRad)
+            );
+            controls.target.copy(center);
+        }
         controls.update();
     }
     
@@ -568,16 +752,43 @@ const SmartFlowRender = (function() {
         const camera = _core.getCamera();
         const controls = _core.getControls();
         if (!camera) return;
-        const distance = 8;
+        
+        const distance = 12;
         const target = new THREE.Vector3(0, 0, 0);
-        switch(type) {
-            case 'top': camera.position.set(0, distance, 0); break;
-            case 'front': camera.position.set(0, 0, distance); break;
-            case 'side': camera.position.set(distance, 0, 0); break;
-            case 'iso': camera.position.set(distance, distance, distance); break;
-            default: return;
+        
+        if (_isOrthoMode && _orthoCamera) {
+            switch(type) {
+                case 'top':
+                    _orthoCamera.position.set(0, distance, 0);
+                    _orthoCamera.up.set(0, 0, 1);
+                    break;
+                case 'front':
+                    _orthoCamera.position.set(0, 0, distance);
+                    _orthoCamera.up.set(0, 1, 0);
+                    break;
+                case 'side':
+                    _orthoCamera.position.set(distance, 0, 0);
+                    _orthoCamera.up.set(0, 1, 0);
+                    break;
+                case 'iso':
+                default:
+                    _orthoCamera.position.set(distance, distance, distance);
+                    _orthoCamera.up.set(0, 1, 0);
+                    break;
+            }
+            _orthoCamera.lookAt(target);
+            _orthoCamera.updateProjectionMatrix();
+        } else {
+            switch(type) {
+                case 'top': camera.position.set(0, distance, 0); break;
+                case 'front': camera.position.set(0, 0, distance); break;
+                case 'side': camera.position.set(distance, 0, 0); break;
+                case 'iso': camera.position.set(distance, distance, distance); break;
+                default: return;
+            }
+            camera.lookAt(target);
         }
-        camera.lookAt(target);
+        
         if (controls) {
             controls.target.copy(target);
             controls.update();
@@ -661,10 +872,20 @@ const SmartFlowRender = (function() {
         _core = coreInstance;
         if (!_core) return;
         
+        // Obtener scene, camera, renderer, controls desde el core
+        const scene = _core.getScene();
+        const camera = _core.getCamera();
+        const renderer = _core.getRenderer();
+        const controls = _core.getControls();
+        
+        if (!scene || !camera || !renderer) {
+            console.warn('⚠️ No se pudieron obtener los elementos visuales del core');
+            return;
+        }
+        
         setupEffects();
         initUIBridge();
         
-        const scene = _core.getScene();
         if (scene) {
             _symbolGroup.userData = { isSymbolGroup: true };
             _dimensionGroup.userData = { isDimensionGroup: true };
@@ -678,13 +899,15 @@ const SmartFlowRender = (function() {
         if (originalAnimate) {
             const newAnimate = () => {
                 if (_isAnimating) {
-                    const camera = _core.getCamera();
-                    const controls = _core.getControls();
-                    camera.position.lerp(_targetPos, _transitionSpeed);
-                    controls.target.lerp(_targetLookAt, _transitionSpeed);
-                    controls.update();
-                    if (camera.position.distanceTo(_targetPos) < 0.01) {
-                        _isAnimating = false;
+                    const currentCamera = _core.getCamera();
+                    const currentControls = _core.getControls();
+                    if (currentCamera && currentControls) {
+                        currentCamera.position.lerp(_targetPos, _transitionSpeed);
+                        currentControls.target.lerp(_targetLookAt, _transitionSpeed);
+                        currentControls.update();
+                        if (currentCamera.position.distanceTo(_targetPos) < 0.01) {
+                            _isAnimating = false;
+                        }
                     }
                 } else {
                     if (_core.getControls()) _core.getControls().update();
@@ -701,6 +924,9 @@ const SmartFlowRender = (function() {
             _core.setAnimate(newAnimate);
         }
         
+        // Agregar listener para resize en modo ortográfico
+        window.addEventListener('resize', handleWindowResize);
+        
         setTimeout(() => {
             refreshAllSymbols();
             refreshAllDimensions();
@@ -709,8 +935,7 @@ const SmartFlowRender = (function() {
         
         scheduleRefresh();
         
-        window.set3DView = setView;
-        console.log("✔ SmartFlowRender v7.2 listo (compatible con Core v5.4, Router v3.8.4)");
+        console.log("✔ SmartFlowRender v8.0 listo - Cámara ortográfica isométrica disponible");
     }
     
     function setLabelRenderer(lr) {
@@ -727,6 +952,11 @@ const SmartFlowRender = (function() {
         refreshAllFlowArrows,
         setLabelRenderer,
         getComposer: () => _composer,
-        getOutlinePass: () => _outlinePass
+        getOutlinePass: () => _outlinePass,
+        // Nuevos métodos para cámara ortográfica
+        toggleCameraMode,
+        switchToOrthoMode,
+        switchToPerspMode,
+        isOrthoMode
     };
 })();
