@@ -1,4 +1,9 @@
 
+// ============================================================
+// SMARTFLOW CORE v5.4 (Actualizado con soporte para renderizado 3D)
+// Archivo: js/core.js
+// ============================================================
+
 const SmartFlowCore = (function() {
     
     let _db = {
@@ -399,6 +404,67 @@ const SmartFlowCore = (function() {
         _notifyUI(`Datum actualizado: EL=${_datumElevation}m, N=${_datumNorth}, E=${_datumEast}`, false);
     }
 
+    // ==================== MÉTODOS PARA INTEGRACIÓN CON RENDERIZADOR 3D ====================
+    let _renderScene = null;
+    let _renderCamera = null;
+    let _renderer3D = null;
+    let _orbitControls = null;
+    let _animationLoop = null;
+    let _visualMeshes = new Map();
+
+    function registerVisuals(scene, camera, renderer, controls) {
+        _renderScene = scene;
+        _renderCamera = camera;
+        _renderer3D = renderer;
+        _orbitControls = controls;
+        console.log('✅ Visuales registrados en Core');
+    }
+
+    function getScene() { return _renderScene; }
+    function getCamera() { return _renderCamera; }
+    function getRenderer() { return _renderer3D; }
+    function getControls() { return _orbitControls; }
+
+    function setCamera(cam) {
+        _renderCamera = cam;
+        if (_orbitControls) _orbitControls.object = cam;
+    }
+
+    function setAnimate(fn) { _animationLoop = fn; }
+    function getAnimate() { return _animationLoop; }
+
+    function registerVisualMesh(tag, mesh) {
+        _visualMeshes.set(tag, mesh);
+    }
+
+    function getVisualMesh(tag) {
+        return _visualMeshes.get(tag);
+    }
+
+    function removeVisualMesh(tag) {
+        _visualMeshes.delete(tag);
+    }
+
+    function clearVisualMeshes() {
+        _visualMeshes.clear();
+    }
+
+    function getVisualMeshMap() {
+        return _visualMeshes;
+    }
+
+    function clearProject() {
+        _db.equipos = [];
+        _db.lines = [];
+        _selectedElement = null;
+        _history = { past: [], future: [], maxSize: 50 };
+        _lastAuditResults = null;
+        rebuildIndexes();
+        _renderUI();
+        _notifyUI("Proyecto limpiado.", false);
+        emit('modelChanged', { type: 'clearProject' });
+    }
+
     return {
         init: function(notifyFn, renderFn, propertyPanelFn) {
             _notifyUI = notifyFn || _notifyUI;
@@ -508,6 +574,7 @@ const SmartFlowCore = (function() {
             _notifyUI("Nuevo proyecto creado.", false);
             emit('modelChanged', { type: 'newProject' });
         },
+        clearProject: clearProject,
         importState: function(state) {
             const data = typeof state === 'string' ? JSON.parse(state) : state;
             let equipos = data.equipos || (data.data && data.data.equipos) || [];
@@ -741,6 +808,21 @@ const SmartFlowCore = (function() {
         getElevation: function() { return _currentElevation; },
         setVoice: function(enabled) { _voiceEnabled = enabled; },
         isVoiceEnabled: function() { return _voiceEnabled; },
+        
+        // Métodos de integración 3D
+        registerVisuals,
+        getScene,
+        getCamera,
+        setCamera,
+        getRenderer,
+        getControls,
+        setAnimate,
+        getAnimate,
+        registerVisualMesh,
+        getVisualMesh,
+        removeVisualMesh,
+        clearVisualMeshes,
+        getVisualMeshMap,
         
         get equiposMap() { return _equiposMap; },
         get linesMap() { return _linesMap; }
