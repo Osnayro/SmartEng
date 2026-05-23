@@ -1,7 +1,8 @@
 
 // ============================================================
-// MÓDULO: SMARTFLOW MAIN v6.5 (Labels 3D + auto-centrado)
+// MÓDULO: SMARTFLOW MAIN v6.6 (Labels 3D + auto-centrado + Cámara Ortográfica)
 // Archivo: js/main.js
+// Cambios: Agregado botón para toggle entre perspectiva y cámara ortográfica isométrica
 // ============================================================
 
 (function() {
@@ -45,6 +46,7 @@
     const btnSetElev = document.getElementById('btnSetElev');
     const btnExportProject = document.getElementById('btnExportProject');
     const btnImportProject = document.getElementById('btnImportProject');
+    const btnIsoOrtho = document.getElementById('btnIsoOrtho');  // NUEVO BOTÓN
     
     // Herramientas
     const toolSelect = document.getElementById('toolSelect');
@@ -88,14 +90,14 @@
     }
     
     function autoCenter() {
-        if (typeof SmartFlowRender !== 'undefined' && SmartFlowRender.fitCameraToEquipments) {
-            SmartFlowRender.fitCameraToEquipments();
-        } else if (typeof SmartFlowRender !== 'undefined' && SmartFlowRender.setView) {
-            SmartFlowRender.setView('iso');
-            notify("Vista isométrica centrada (modo estándar).", false);
-        } else {
-            notify("Función de centrado no disponible.", true);
+        if (typeof SmartFlowRender !== 'undefined') {
+            if (SmartFlowRender.fitCameraToEquipments) {
+                SmartFlowRender.fitCameraToEquipments();
+            } else if (SmartFlowRender.setView) {
+                SmartFlowRender.setView('iso');
+            }
         }
+        notify("Vista centrada", false);
     }
     
     function togglePanel(show) {
@@ -172,6 +174,11 @@
         const scene = SmartFlowCore.getScene();
         SmartFlowLabels.init(SmartFlowCore, _labelRenderer, scene);
         
+        // Registrar labelRenderer en render.js
+        if (typeof SmartFlowRender !== 'undefined' && SmartFlowRender.setLabelRenderer) {
+            SmartFlowRender.setLabelRenderer(_labelRenderer);
+        }
+        
         // Crear labels iniciales después de un breve retraso
         setTimeout(() => {
             SmartFlowLabels.crearLabelsProyecto();
@@ -202,7 +209,7 @@
             if (typeof SmartFlowIO !== 'undefined') SmartFlowIO.init(SmartFlowCore, SmartFlowCatalog, notify);
             if (commandText && typeof SmartFlowAutocomplete !== 'undefined') SmartFlowAutocomplete.init(commandText, SmartFlowCore, SmartFlowCatalog, SmartFlowCommands);
             
-            // Inicializar Labels 3D (CORREGIDO)
+            // Inicializar Labels 3D
             initLabels();
             
             // Contar elementos iniciales
@@ -244,47 +251,10 @@
                 });
             }
             
-            // Integrar CSS2DRenderer en el bucle de animación
-            integrarLabelRenderer();
-            
             notify("SmartFlow 3D - Sistema listo", false);
         } catch(e) {
             notify("Error en inicialización: " + e.message, true);
             console.error(e);
-        }
-    }
-    
-    // -------------------- Integrar CSS2DRenderer en bucle de animación --------------------
-    function integrarLabelRenderer() {
-        if (!_labelRenderer) return;
-        
-        const scene = SmartFlowCore.getScene();
-        const camera = SmartFlowCore.getCamera();
-        
-        if (!scene || !camera) return;
-        
-        // Obtener la función de animación actual
-        const animateActual = SmartFlowCore.getAnimate();
-        
-        if (animateActual) {
-            const nuevoAnimate = function() {
-                // Llamar a la animación original (que ya maneja el renderizado 3D)
-                // El CSS2DRenderer se renderiza después
-                _labelRenderer.render(scene, camera);
-            };
-            
-            // Parche: interceptar el bucle de animación
-            const originalRAF = window.requestAnimationFrame;
-            window.requestAnimationFrame = function(callback) {
-                return originalRAF.call(window, function(timestamp) {
-                    callback(timestamp);
-                    if (_labelRenderer && scene && camera) {
-                        _labelRenderer.render(scene, camera);
-                    }
-                });
-            };
-            
-            console.log('✅ CSS2DRenderer integrado en bucle de animación');
         }
     }
     
@@ -302,6 +272,11 @@
                     case 'M': e.preventDefault(); if(typeof SmartFlowIO !== 'undefined' && SmartFlowIO.exportMTO) SmartFlowIO.exportMTO(); break;
                     case 'P': e.preventDefault(); if(typeof SmartFlowIO !== 'undefined' && SmartFlowIO.exportPDF) SmartFlowIO.exportPDF(); break;
                     case 'E': e.preventDefault(); if(typeof SmartFlowIO !== 'undefined' && SmartFlowIO.exportPCF) SmartFlowIO.exportPCF(); break;
+                    case 'O': e.preventDefault(); if(typeof SmartFlowRender !== 'undefined' && SmartFlowRender.toggleCameraMode) {
+                        SmartFlowRender.toggleCameraMode();
+                        const isOrtho = SmartFlowRender.isOrthoMode ? SmartFlowRender.isOrthoMode() : false;
+                        notify(isOrtho ? "🔘 Modo ISOMÉTRICO ORTOGRÁFICO" : "🔘 Modo PERSPECTIVA", false);
+                    } break;
                 }
             }
         });
@@ -415,6 +390,27 @@
         vincular('btnSetElev', () => { const val = parseInt(customElev?.value); if (!isNaN(val)) setElevation(val); });
         vincular('btnApplyNorm', () => notify("Función de normas en desarrollo.", false));
         vincular('btnToggleCatalog', () => { if (catalogPanel) catalogPanel.style.display = catalogPanel.style.display==='none' ? 'flex' : 'none'; });
+        
+        // NUEVO BOTÓN: Alternar cámara isométrica ortográfica
+        vincular('btnIsoOrtho', () => {
+            if (typeof SmartFlowRender !== 'undefined' && SmartFlowRender.toggleCameraMode) {
+                SmartFlowRender.toggleCameraMode();
+                const isOrtho = SmartFlowRender.isOrthoMode ? SmartFlowRender.isOrthoMode() : false;
+                notify(isOrtho ? "📐 Modo ISOMÉTRICO ORTOGRÁFICO activado" : "🎥 Modo PERSPECTIVA activado", false);
+                
+                // Reajustar vista después del cambio
+                setTimeout(() => {
+                    if (typeof SmartFlowRender.fitCameraToEquipments === 'function') {
+                        SmartFlowRender.fitCameraToEquipments();
+                    }
+                    if (typeof SmartFlowLabels !== 'undefined') {
+                        SmartFlowLabels.crearLabelsProyecto();
+                    }
+                }, 200);
+            } else {
+                notify("Función de cámara ortográfica no disponible", true);
+            }
+        });
         
         window.addEventListener('resize', () => {
             if (typeof SmartFlowCore !== 'undefined') {
