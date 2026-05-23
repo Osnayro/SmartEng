@@ -192,6 +192,8 @@
         button:hover { background: var(--accent-blue); border-color: var(--accent-cyan); box-shadow: 0 0 12px rgba(0, 242, 255, 0.2); }
         .btn-primary { background: #238636; border-color: #2ea043; }
         .btn-primary:hover { background: #2ea043; }
+        .btn-ortho { background: #7c3aed; border-color: #a855f7; }
+        .btn-ortho:hover { background: #8b5cf6; border-color: #c084fc; }
         .btn-warning { background: #d29922; color: #1f1f1f; border-color: #e2a83a; }
         .btn-warning:hover { background: #e2a83a; }
         .btn-speak { background: #7c3aed; border-color: #8b5cf6; }
@@ -395,7 +397,8 @@
             .toolbar #btnCapture,
             .toolbar #btnUndo,
             .toolbar #btnRedo,
-            .toolbar #btnSave {
+            .toolbar #btnSave,
+            .toolbar #btnIsoOrtho {
                 display: inline-block !important;
                 font-size: 10px !important;
                 padding: 5px 8px !important;
@@ -643,6 +646,10 @@
         <button id="btnTopView" aria-label="Vista superior">⬇️ Top</button>
         <button id="btnFrontView" aria-label="Vista frontal">➡️ Front</button>
         <button id="btnSideView" aria-label="Vista lateral">⬅️ Side</button>
+        
+        <!-- NUEVO BOTÓN: Cámara isométrica ortográfica -->
+        <button id="btnIsoOrtho" class="btn-ortho" aria-label="Alternar cámara isométrica ortográfica">📐 Iso Real</button>
+        
         <button id="btnCommand" class="btn-primary" aria-label="Abrir panel de comandos">🤖 Comandos</button>
         <button id="btnAddTank" aria-label="Añadir tanque">🏭 Tanque</button>
         <button id="btnAddPump" aria-label="Añadir bomba">⚙️ Bomba</button>
