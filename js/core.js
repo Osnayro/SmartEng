@@ -1,6 +1,6 @@
 
 // ============================================================
-// SMARTFLOW CORE v5.4 (Actualizado con soporte para renderizado 3D)
+// SMARTFLOW CORE v5.5 (CORREGIDO - con registerVisualFactory)
 // Archivo: js/core.js
 // ============================================================
 
@@ -411,6 +411,7 @@ const SmartFlowCore = (function() {
     let _orbitControls = null;
     let _animationLoop = null;
     let _visualMeshes = new Map();
+    let _visualFactory = null;  // <-- NUEVA VARIABLE
 
     function registerVisuals(scene, camera, renderer, controls) {
         _renderScene = scene;
@@ -451,6 +452,16 @@ const SmartFlowCore = (function() {
 
     function getVisualMeshMap() {
         return _visualMeshes;
+    }
+
+    // NUEVOS MÉTODOS PARA EL CATÁLOGO VISUAL
+    function registerVisualFactory(catalog) {
+        _visualFactory = catalog;
+        console.log('✅ Visual factory registrado:', catalog);
+    }
+
+    function getVisualFactory() {
+        return _visualFactory;
     }
 
     function clearProject() {
@@ -823,6 +834,10 @@ const SmartFlowCore = (function() {
         removeVisualMesh,
         clearVisualMeshes,
         getVisualMeshMap,
+        
+        // NUEVOS MÉTODOS PARA VISUAL FACTORY
+        registerVisualFactory,
+        getVisualFactory,
         
         get equiposMap() { return _equiposMap; },
         get linesMap() { return _linesMap; }
