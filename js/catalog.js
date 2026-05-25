@@ -1,14 +1,18 @@
 
 // ============================================================
-// SMARTFLOW CATALOG v3.5.2 (Abreviaturas ISO + Componentes completos)
+// SMARTFLOW CATALOG v4.0 - Catálogo Industrial Unificado
 // Archivo: js/catalog.js
-// Cambios: añadida plataforma como nuevo tipo de equipo
+// Industrias: Agua • Oil&Gas • Petroquímica • Química • Alimentos
+// Compatible: SmartFlowCore v5.5 + SmartFlowCommands v2.0
 // ============================================================
 
 const SmartFlowCatalog = (function() {
     
-    // -------------------- 1. ESPECIFICACIONES DE MATERIALES --------------------
+    // ================================================================
+    // 1. ESPECIFICACIONES DE MATERIALES (AMPLIADAS)
+    // ================================================================
     const specs = {
+        // Originales v3.5.2
         "PPR_PN12_5": { material: "PPR", norma: "IRAM 13471", presion: "PN 12.5", color: 0x7c3aed, conexion: "TERMOFUSION" },
         "ACERO_SCH80": { material: "Acero al Carbono", norma: "ASTM A106 Gr. B", schedule: "SCH 80", color: 0x94a3b8, conexion: "NPT" },
         "ACERO_150_RF": { material: "Acero al Carbono", norma: "ASTM A105", clase: "150", cara: "RF", color: 0x64748b, conexion: "BRIDADA" },
@@ -17,11 +21,33 @@ const SmartFlowCatalog = (function() {
         "SS_SANITARY": { material: "Acero Inoxidable 316L", norma: "3A / ASME BPE", acabado: "Ra < 0.8 µm", color: 0xe2e8f0, conexion: "TRI-CLAMP" },
         "PTFE_LINED": { material: "Acero al Carbono Revestido PTFE", norma: "ASTM A395", color: 0xa78bfa, conexion: "BRIDADA" },
         "HDPE_PE100": { material: "HDPE", norma: "PE100", presion: "PN 10", color: 0x22c55e, conexion: "ELECTROFUSION" },
-        "PVC_SCH80": { material: "PVC", norma: "ASTM D1785", schedule: "SCH 80", color: 0xeab308, conexion: "CEMENTADO" }
+        "PVC_SCH80": { material: "PVC", norma: "ASTM D1785", schedule: "SCH 80", color: 0xeab308, conexion: "CEMENTADO" },
+        
+        // Nuevas especificaciones v4.0
+        "CS_600_RF": { material: "Acero al Carbono", norma: "ASTM A105", clase: "600", cara: "RF", color: 0x334155, conexion: "BRIDADA" },
+        "CS_900_RF": { material: "Acero al Carbono", norma: "ASTM A105", clase: "900", cara: "RF", color: 0x1e293b, conexion: "BRIDADA" },
+        "CS_1500_RTJ": { material: "Acero al Carbono", norma: "ASTM A105", clase: "1500", cara: "RTJ", color: 0x0f172a, conexion: "BRIDADA" },
+        "SS_300_RF": { material: "Acero Inoxidable 316L", norma: "ASTM A182 F316L", clase: "300", cara: "RF", color: 0x78909c, conexion: "BRIDADA" },
+        "SS_600_RF": { material: "Acero Inoxidable 316L", norma: "ASTM A182 F316L", clase: "600", cara: "RF", color: 0x5c7a89, conexion: "BRIDADA" },
+        "DUPLEX_150_RF": { material: "Acero Dúplex 2205", norma: "ASTM A182 F51", clase: "150", cara: "RF", color: 0xcbd5e1, conexion: "BRIDADA" },
+        "ALLOY20_150_RF": { material: "Alloy 20", norma: "ASTM B462", clase: "150", cara: "RF", color: 0xfbbf24, conexion: "BRIDADA" },
+        "HASTELLOY_150_RF": { material: "Hastelloy C276", norma: "ASTM B574", clase: "150", cara: "RF", color: 0xf59e0b, conexion: "BRIDADA" },
+        "CS_CRYO": { material: "Acero al Carbono Criogénico", norma: "ASTM A333 Gr.6", clase: "150", cara: "RF", color: 0x6366f1, conexion: "BRIDADA" },
+        "PVC_SCH40": { material: "PVC", norma: "ASTM D1785", schedule: "SCH 40", color: 0xfacc15, conexion: "CEMENTADO" },
+        "CPVC_SCH80": { material: "CPVC", norma: "ASTM F441", schedule: "SCH 80", color: 0xfb923c, conexion: "CEMENTADO" },
+        "PVDF_PN16": { material: "PVDF", norma: "ISO 10931", presion: "PN 16", color: 0xef4444, conexion: "TERMOFUSION" },
+        "FRP": { material: "Fibra de Vidrio (FRP)", norma: "ASTM D2996", color: 0x8b5cf6, conexion: "LAMINADO" },
+        "RUBBER_LINED": { material: "Acero Revestido Goma", norma: "ASTM A395", color: 0xec4899, conexion: "BRIDADA" },
+        "GLASS_LINED": { material: "Acero Revestido Vidrio", norma: "DIN 2873", color: 0xf0f9ff, conexion: "BRIDADA" }
     };
 
-    // -------------------- 2. DEFINICIÓN DE EQUIPOS --------------------
+    // ================================================================
+    // 2. DEFINICIÓN DE EQUIPOS (ORIGINALES v3.5.2 + NUEVOS v4.0)
+    // ================================================================
     const equipment = {
+        // ────────────────────────────────────────────────────────────
+        // ORIGINALES v3.5.2 (MANTENIDOS ÍNTEGROS)
+        // ────────────────────────────────────────────────────────────
         tanque_v: { 
             nombre: 'Tanque Vertical', categoria: 'almacenamiento', forma: 'cilindro',
             generarPuertos: (eq) => {
@@ -150,11 +176,312 @@ const SmartFlowCatalog = (function() {
             categoria: 'estructura',
             forma: 'rect',
             generarPuertos: (eq) => []
+        },
+
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: TRATAMIENTO DE AGUA
+        // ────────────────────────────────────────────────────────────
+        desgasificador: {
+            nombre: 'Desgasificador', categoria: 'tratamiento', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Agua', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OUT', label: 'Salida Agua', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'VENT', label: 'Venteo Gas', relX: 0, relY: eq.altura/2 + 500, relZ: 0, diametro: 3, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } }
+            ]
+        },
+        desmineralizador: {
+            nombre: 'Desmineralizador (Lecho Mixto)', categoria: 'tratamiento', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Agua', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OUT', label: 'Salida Tratada', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'REGEN', label: 'Regeneración', relX: eq.diametro/2, relY: 0, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        suavizador: {
+            nombre: 'Suavizador', categoria: 'tratamiento', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Agua Dura', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'NPT', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OUT', label: 'Salida Agua Suave', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'NPT', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'BRINE', label: 'Salmuera', relX: eq.diametro/2, relY: 0, relZ: 0, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        filtro_carbon: {
+            nombre: 'Filtro Carbón Activado', categoria: 'tratamiento', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'BACKWASH', label: 'Retrolavado', relX: eq.diametro/2, relY: eq.altura/4, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        dosificador_quimico: {
+            nombre: 'Dosificador Químico', categoria: 'tratamiento', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'SUC', label: 'Succión Químico', relX: -eq.largo/2, relY: -eq.altura/4, relZ: 0, diametro: 1, tipoConexion: 'NPT', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'DESC', label: 'Descarga', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 1, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        canaleta_parshall: {
+            nombre: 'Canaleta Parshall', categoria: 'tratamiento', forma: 'canal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 12, tipoConexion: 'ABIERTA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 12, tipoConexion: 'ABIERTA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        espesador: {
+            nombre: 'Espesador', categoria: 'tratamiento', forma: 'cono',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OVERFLOW', label: 'Rebose', relX: eq.diametro/2, relY: eq.altura/3, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'UNDERFLOW', label: 'Descarga Fondo', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } }
+            ]
+        },
+        floculador: {
+            nombre: 'Floculador', categoria: 'tratamiento', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        celda_electrolitica: {
+            nombre: 'Celda Electrolítica', categoria: 'tratamiento', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 4, tipoConexion: 'NPT', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida Tratada', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 4, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'VENT', label: 'Venteo H2', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: 0, dy: 1, dz: 0 } }
+            ]
+        },
+
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: OIL & GAS
+        // ────────────────────────────────────────────────────────────
+        separador_trifasico: {
+            nombre: 'Separador Trifásico', categoria: 'proceso', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Producción', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 10, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'GAS', label: 'Salida Gas', relX: 0, relY: eq.diametro/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OIL', label: 'Salida Petróleo', relX: eq.largo/2, relY: 0, relZ: -eq.diametro/4, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: -1 } },
+                { id: 'WATER', label: 'Salida Agua', relX: eq.largo/2, relY: 0, relZ: -eq.diametro/2, diametro: 3, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: -1 } }
+            ]
+        },
+        slug_catcher: {
+            nombre: 'Slug Catcher', categoria: 'proceso', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 16, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'GAS', label: 'Gas', relX: eq.largo/2, relY: eq.diametro/2, relZ: 0, diametro: 12, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 1, dz: 0 } },
+                { id: 'LIQ', label: 'Líquido', relX: eq.largo/2, relY: -eq.diametro/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: -1, dz: 0 } }
+            ]
+        },
+        calentador_fuego_directo: {
+            nombre: 'Calentador Fuego Directo (Heater Treater)', categoria: 'termico', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Emulsión', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OIL', label: 'Salida Petróleo', relX: eq.largo/2, relY: eq.diametro/3, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'WATER', label: 'Salida Agua', relX: eq.largo/2, relY: -eq.diametro/3, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'GAS', label: 'Gas Combustible', relX: 0, relY: 0, relZ: -eq.diametro/2, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: 0, dy: 0, dz: -1 } }
+            ]
+        },
+        antorcha: {
+            nombre: 'Antorcha (Flare)', categoria: 'seguridad', forma: 'torre',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Gas de Venteo', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 12, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'PILOT', label: 'Gas Piloto', relX: 0, relY: eq.altura/2 - 1000, relZ: eq.diametro/2, diametro: 1, tipoConexion: 'NPT', orientacion: { dx: 0, dy: 0, dz: 1 } }
+            ]
+        },
+        skid_inyeccion: {
+            nombre: 'Skid Inyección Química', categoria: 'proceso', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'SUC', label: 'Succión Químico', relX: -eq.largo/2, relY: -eq.altura/4, relZ: 0, diametro: 1, tipoConexion: 'NPT', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'DESC', label: 'Inyección', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 1, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        filtro_duplex: {
+            nombre: 'Filtro Dúplex', categoria: 'filtracion', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: PETROQUÍMICA
+        // ────────────────────────────────────────────────────────────
+        columna_fraccionadora: {
+            nombre: 'Columna Fraccionadora', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: -eq.altura/4, relZ: eq.diametro/2, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 0, dz: 1 } },
+                { id: 'TOP', label: 'Destilado', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'BOT', label: 'Fondos', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'REF', label: 'Reflujo', relX: eq.diametro/2, relY: eq.altura/3, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        condensador: {
+            nombre: 'Condensador', categoria: 'termico', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'VAP_IN', label: 'Entrada Vapor', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'COND_OUT', label: 'Salida Condensado', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'CW_IN', label: 'Entrada Agua Enfriamiento', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'CW_OUT', label: 'Salida Agua Enfriamiento', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        evaporador: {
+            nombre: 'Evaporador', categoria: 'termico', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: eq.altura/3, relZ: eq.diametro/2, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 0, dz: 1 } },
+                { id: 'VAPOR', label: 'Vapor', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'CONC', label: 'Concentrado', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } }
+            ]
+        },
+        cristalizador: {
+            nombre: 'Cristalizador', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'PROD', label: 'Producto Cristalizado', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } }
+            ]
+        },
+        secador_rotativo: {
+            nombre: 'Secador Rotativo', categoria: 'termico', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Sólidos Húmedos', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida Sólidos Secos', relX: eq.largo/2, relY: -eq.diametro/4, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'AIR_IN', label: 'Entrada Aire Caliente', relX: eq.largo/3, relY: eq.diametro/2, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'AIR_OUT', label: 'Salida Aire Húmedo', relX: -eq.largo/3, relY: eq.diametro/2, relZ: 0, diametro: 8, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } }
+            ]
+        },
+        absorbedor: {
+            nombre: 'Absorbedor', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'GAS_IN', label: 'Entrada Gas', relX: 0, relY: -eq.altura/4, relZ: eq.diametro/2, diametro: 10, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 0, dz: 1 } },
+                { id: 'GAS_OUT', label: 'Salida Gas Tratado', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 10, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'LEAN_IN', label: 'Entrada Solvente Pobre', relX: eq.diametro/2, relY: eq.altura/3, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'RICH_OUT', label: 'Salida Solvente Rico', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } }
+            ]
+        },
+        stripper: {
+            nombre: 'Stripper / Despojador', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: eq.altura/3, relZ: eq.diametro/2, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 0, dz: 1 } },
+                { id: 'STEAM', label: 'Vapor Despojo', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'OVHD', label: 'Producto Cima', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'BOT', label: 'Fondos', relX: eq.diametro/2, relY: -eq.altura/3, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: QUÍMICA
+        // ────────────────────────────────────────────────────────────
+        reactor_encamisado: {
+            nombre: 'Reactor Encamisado', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'PROD', label: 'Producto', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'JACK_IN', label: 'Entrada Chaqueta', relX: eq.diametro/2 + 100, relY: 0, relZ: 0, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'JACK_OUT', label: 'Salida Chaqueta', relX: -(eq.diametro/2 + 100), relY: eq.altura/4, relZ: 0, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: -1, dy: 0, dz: 0 } }
+            ]
+        },
+        autoclave: {
+            nombre: 'Autoclave', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'STEAM', label: 'Vapor', relX: eq.diametro/2, relY: 0, relZ: 0, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        centrifuga: {
+            nombre: 'Centrífuga', categoria: 'rotativo', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 4, tipoConexion: 'NPT', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'SOLIDS', label: 'Sólidos', relX: eq.largo/2, relY: -eq.diametro/4, relZ: 0, diametro: 4, tipoConexion: 'ABIERTA', orientacion: { dx: 1, dy: -1, dz: 0 } },
+                { id: 'LIQUID', label: 'Líquido', relX: eq.largo/2, relY: eq.diametro/4, relZ: 0, diametro: 3, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        filtro_prensa: {
+            nombre: 'Filtro Prensa', categoria: 'filtracion', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Lodo', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'FILT', label: 'Salida Filtrado', relX: eq.largo/2, relY: -eq.altura/2, relZ: 0, diametro: 3, tipoConexion: 'NPT', orientacion: { dx: 1, dy: -1, dz: 0 } }
+            ]
+        },
+        agitador: {
+            nombre: 'Agitador / Mezclador', categoria: 'proceso', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN1', label: 'Entrada 1', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'IN2', label: 'Entrada 2', relX: eq.diametro/2, relY: eq.altura/3, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 6, tipoConexion: 'BRIDADA', orientacion: { dx: 0, dy: -1, dz: 0 } }
+            ]
+        },
+        molino: {
+            nombre: 'Molino', categoria: 'rotativo', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: eq.diametro/4, relZ: 0, diametro: 8, tipoConexion: 'ABIERTA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: eq.largo/2, relY: -eq.diametro/4, relZ: 0, diametro: 6, tipoConexion: 'ABIERTA', orientacion: { dx: 1, dy: -1, dz: 0 } }
+            ]
+        },
+        filtro_tambor: {
+            nombre: 'Filtro Tambor Rotativo', categoria: 'filtracion', forma: 'cilindro_horizontal',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Suspensión', relX: -eq.largo/2, relY: -eq.diametro/4, relZ: 0, diametro: 4, tipoConexion: 'BRIDADA', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'FILT', label: 'Filtrado', relX: eq.largo/2, relY: 0, relZ: -eq.diametro/2, diametro: 3, tipoConexion: 'NPT', orientacion: { dx: 1, dy: 0, dz: -1 } },
+                { id: 'CAKE', label: 'Torta', relX: eq.largo/2, relY: 0, relZ: eq.diametro/2, diametro: 4, tipoConexion: 'ABIERTA', orientacion: { dx: 1, dy: 0, dz: 1 } }
+            ]
+        },
+
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: ALIMENTOS / LÁCTEOS
+        // ────────────────────────────────────────────────────────────
+        tanque_aseptico: {
+            nombre: 'Tanque Aséptico', categoria: 'almacenamiento', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Producto', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'OUT', label: 'Salida Producto', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 0, dy: -1, dz: 0 } },
+                { id: 'CIP', label: 'CIP', relX: eq.diametro/2, relY: eq.altura/3, relZ: 0, diametro: 2, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        tina_quesera: {
+            nombre: 'Tina Quesera', categoria: 'proceso', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Leche', relX: -eq.largo/2, relY: eq.altura/3, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida Suero', relX: eq.largo/2, relY: -eq.altura/4, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 1, dy: -1, dz: 0 } }
+            ]
+        },
+        centrifuga_discos: {
+            nombre: 'Centrífuga de Discos', categoria: 'rotativo', forma: 'cilindro',
+            generarPuertos: (eq) => [
+                { id: 'FEED', label: 'Alimentación', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'LIGHT', label: 'Fase Ligera', relX: eq.diametro/2, relY: eq.altura/3, relZ: 0, diametro: 2, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'HEAVY', label: 'Fase Pesada', relX: 0, relY: -eq.altura/2, relZ: 0, diametro: 2, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 0, dy: -1, dz: 0 } }
+            ]
+        },
+        homogeneizador_ap: {
+            nombre: 'Homogeneizador Alta Presión', categoria: 'proceso', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
+        },
+        esterilizador_uht: {
+            nombre: 'Esterilizador UHT', categoria: 'termico', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Producto', relX: -eq.largo/2, relY: 0, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: -1, dy: 0, dz: 0 } },
+                { id: 'OUT', label: 'Salida Esterilizado', relX: eq.largo/2, relY: 0, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 1, dy: 0, dz: 0 } },
+                { id: 'STEAM', label: 'Vapor', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 2, tipoConexion: 'NPT', orientacion: { dx: 0, dy: 1, dz: 0 } }
+            ]
+        },
+        llenadora: {
+            nombre: 'Llenadora', categoria: 'envasado', forma: 'rect',
+            generarPuertos: (eq) => [
+                { id: 'IN', label: 'Entrada Producto', relX: 0, relY: eq.altura/2, relZ: 0, diametro: 3, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 0, dy: 1, dz: 0 } },
+                { id: 'CIP', label: 'Retorno CIP', relX: eq.largo/2, relY: -eq.altura/4, relZ: 0, diametro: 2, tipoConexion: 'TRI-CLAMP', orientacion: { dx: 1, dy: 0, dz: 0 } }
+            ]
         }
     };
 
-    // -------------------- 3. COMPONENTES DE TUBERÍA --------------------
+    // ================================================================
+    // 3. COMPONENTES DE TUBERÍA (ORIGINALES v3.5.2 + NUEVOS v4.0)
+    // ================================================================
     const components = {
+        // ────────────────────────────────────────────────────────────
+        // ORIGINALES v3.5.2 (MANTENIDOS ÍNTEGROS)
+        // ────────────────────────────────────────────────────────────
         TEE_EQUAL_CS: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta Acero', abbr: 'TE', spec: 'ACERO_150_RF', norma: 'ASTM A234 WPB', material: 'Acero al Carbono' },
         TEE_REDUCING_CS: { tipo: 'TEE_REDUCING', nombre: 'Tee Reductora Acero', abbr: 'TR', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         TEE_EQUAL_PPR: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta PPR', abbr: 'TE', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
@@ -286,10 +613,69 @@ const SmartFlowCatalog = (function() {
         AIR_RELEASE_VALVE: { tipo: 'AIR_RELEASE', nombre: 'Válvula de Liberación de Aire', abbr: 'AR', material: 'Acero Inoxidable' },
         
         SAMPLE_COOLER: { tipo: 'SAMPLE_COOLER', nombre: 'Enfriador de Muestra', abbr: 'SC', material: 'Acero Inoxidable' },
-        SAMPLE_VALVE: { tipo: 'SAMPLE_VALVE', nombre: 'Válvula de Muestreo', abbr: 'SV', material: 'Acero Inoxidable' }
+        SAMPLE_VALVE: { tipo: 'SAMPLE_VALVE', nombre: 'Válvula de Muestreo', abbr: 'SV', material: 'Acero Inoxidable' },
+
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: OIL & GAS
+        // ────────────────────────────────────────────────────────────
+        PLUG_VALVE_LUBRICATED: { tipo: 'PLUG_VALVE', nombre: 'Válvula Tapón Lubricada', abbr: 'PV', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        CHOKE_VALVE: { tipo: 'CHOKE_VALVE', nombre: 'Válvula Choke', abbr: 'CH', spec: 'CS_600_RF', material: 'Acero al Carbono' },
+        RTJ_FLANGE_600: { tipo: 'RTJ_FLANGE', nombre: 'Brida RTJ 600#', abbr: 'FR', spec: 'CS_600_RF', cara: 'RTJ', material: 'Acero al Carbono' },
+        INSULATING_JOINT: { tipo: 'INSULATING_JOINT', nombre: 'Junta Aislante', abbr: 'IJ', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        DUPLEX_STRAINER: { tipo: 'DUPLEX_STRAINER', nombre: 'Filtro Dúplex', abbr: 'DS', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
+        PRESSURE_SAFETY_VALVE: { tipo: 'SAFETY_VALVE', subtipo: 'PILOT', nombre: 'PSV Pilotada', abbr: 'PS', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        RUPTURE_DISC: { tipo: 'RUPTURE_DISC', nombre: 'Disco de Ruptura', abbr: 'RD', spec: 'CS_300_RF', material: 'Inconel' },
+        BALL_VALVE_TRUNNION: { tipo: 'BALL_VALVE', subtipo: 'TRUNNION', nombre: 'Válvula Bola Trunnion', abbr: 'BT', spec: 'CS_600_RF', material: 'Acero al Carbono' },
+        PIPELINE_PIG_LAUNCHER: { tipo: 'PIG_LAUNCHER', nombre: 'Lanzador de Pig', abbr: 'PL', spec: 'CS_600_RF', material: 'Acero al Carbono' },
+        
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: TRATAMIENTO DE AGUA
+        // ────────────────────────────────────────────────────────────
+        AIR_DIFFUSER: { tipo: 'AIR_DIFFUSER', nombre: 'Difusor de Aire', abbr: 'AD', material: 'EPDM', conexion: 'NPT' },
+        CHLORINE_EJECTOR: { tipo: 'EJECTOR', nombre: 'Eyector de Cloro', abbr: 'EC', material: 'PVC', conexion: 'NPT' },
+        MEDIA_FILTER: { tipo: 'MEDIA', nombre: 'Medio Filtrante', abbr: 'MF', material: 'Arena/Antracita' },
+        CHEMICAL_INJECTOR: { tipo: 'INJECTOR', nombre: 'Inyector Químico', abbr: 'CI', material: '316L', conexion: 'NPT' },
+        STATIC_MIXER: { tipo: 'STATIC_MIXER', nombre: 'Mezclador Estático', abbr: 'SM', spec: 'PVC_SCH80', material: 'PVC' },
+        UV_STERILIZER: { tipo: 'UV_STERILIZER', nombre: 'Esterilizador UV', abbr: 'UV', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
+        OZONE_GENERATOR: { tipo: 'OZONE_GENERATOR', nombre: 'Generador de Ozono', abbr: 'OZ', material: '316L' },
+        
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: PETROQUÍMICA
+        // ────────────────────────────────────────────────────────────
+        CRYOGENIC_VALVE: { tipo: 'CRYOGENIC_VALVE', nombre: 'Válvula Criogénica', abbr: 'CV', spec: 'CS_CRYO', material: 'Acero Criogénico' },
+        FUEL_GAS_KNOCKOUT: { tipo: 'KNOCKOUT_DRUM', nombre: 'Fuel Gas Knockout', abbr: 'FG', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
+        ORIFICE_FLANGE: { tipo: 'ORIFICE_FLANGE', nombre: 'Brida Orificio', abbr: 'FO', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        SPECTACLE_BLIND: { tipo: 'SPECTACLE_BLIND', nombre: 'Juego de Bridas Ciegas (8)', abbr: 'SB', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        STEAM_DESUPERHEATER: { tipo: 'DESUPERHEATER', nombre: 'Desobrecalentador Vapor', abbr: 'DS', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        THERMAL_OIL_HEATER: { tipo: 'THERMAL_HEATER', nombre: 'Calentador Aceite Térmico', abbr: 'TO', spec: 'CS_300_RF', material: 'Acero al Carbono' },
+        
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: QUÍMICA
+        // ────────────────────────────────────────────────────────────
+        GLASS_LINED_VALVE: { tipo: 'GLASS_LINED_VALVE', nombre: 'Válvula Revestida Vidrio', abbr: 'GV', spec: 'GLASS_LINED', material: 'Acero Revestido' },
+        DETONATION_ARRESTER: { tipo: 'DETONATION_ARRESTER', nombre: 'Arrestador de Detonación', abbr: 'DA', spec: 'ACERO_150_RF', material: 'Acero Inoxidable' },
+        PISTON_SAMPLE_VALVE: { tipo: 'PISTON_SAMPLE_VALVE', nombre: 'Válvula Muestreo Pistón', abbr: 'PS', material: '316L', conexion: 'NPT' },
+        MAGNETIC_DRIVE_PUMP: { tipo: 'MAG_DRIVE_PUMP', nombre: 'Bomba Accionamiento Magnético', abbr: 'MP', spec: 'PTFE_LINED', material: 'PTFE' },
+        CORIOLIS_METER: { tipo: 'FLOW_METER', subtipo: 'CORIOLIS', nombre: 'Caudalímetro Coriolis', abbr: 'CM', spec: 'SS_150_RF', material: '316L' },
+        PH_METER: { tipo: 'INSTRUMENT', nombre: 'Medidor de pH', abbr: 'PH', conexion: 'ROSCADO' },
+        CONDUCTIVITY_METER: { tipo: 'INSTRUMENT', nombre: 'Conductivímetro', abbr: 'CD', conexion: 'ROSCADO' },
+        
+        // ────────────────────────────────────────────────────────────
+        // NUEVOS v4.0: ALIMENTOS / LÁCTEOS
+        // ────────────────────────────────────────────────────────────
+        ASEPTIC_VALVE: { tipo: 'ASEPTIC_VALVE', nombre: 'Válvula Aséptica', abbr: 'AV', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
+        SIGHT_GLASS_SANITARY: { tipo: 'SIGHT_GLASS_SANITARY', nombre: 'Mirilla Sanitaria', abbr: 'SG', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
+        SPRAY_BALL: { tipo: 'SPRAY_BALL', nombre: 'Spray Ball CIP', abbr: 'SB', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
+        SANITARY_STRAINER: { tipo: 'SANITARY_STRAINER', nombre: 'Filtro Sanitario', abbr: 'SS', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
+        STEAM_TRAP_SANITARY: { tipo: 'STEAM_TRAP_SANITARY', nombre: 'Trampa Vapor Sanitaria', abbr: 'ST', spec: 'SS_SANITARY', material: '316L' },
+        SANITARY_CHECK_VALVE: { tipo: 'CHECK_VALVE_SANITARY', nombre: 'Check Sanitaria', abbr: 'CK', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
+        SANITARY_SAMPLE_VALVE: { tipo: 'SAMPLE_VALVE_SANITARY', nombre: 'Válvula Muestreo Sanitaria', abbr: 'SV', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
+        SANITARY_PRESSURE_GAUGE: { tipo: 'PRESSURE_GAUGE_SANITARY', nombre: 'Manómetro Sanitario', abbr: 'PG', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP' }
     };
 
-    // ==================== 4. GENERADORES DE PUERTOS PARA ACCESORIOS ====================
+    // ================================================================
+    // 4. GENERADORES DE PUERTOS PARA ACCESORIOS (ORIGINAL + EXTENDIDO)
+    // ================================================================
     function calculateLineDirection(line, param) {
         if (!line) return { dx: 1, dy: 0, dz: 0 };
         let pts = [];
@@ -363,6 +749,25 @@ const SmartFlowCatalog = (function() {
                 { id: 'BRANCH1', label: 'Derivación 1', relX: perp1.dx*offset, relY: perp1.dy*offset, relZ: perp1.dz*offset, orientacion: perp1, diametro },
                 { id: 'BRANCH2', label: 'Derivación 2', relX: perp2.dx*offset, relY: perp2.dy*offset, relZ: perp2.dz*offset, orientacion: perp2, diametro }
             ];
+        },
+        // Nuevo generador para válvulas (2 puertos en línea)
+        VALVE: (line, param, diametro) => {
+            const dir = calculateLineDirection(line, param);
+            const offset = getComponentOffset('VALVE', diametro);
+            return [
+                { id: 'IN', label: 'Entrada', relX: -dir.dx*offset, relY: -dir.dy*offset, relZ: -dir.dz*offset, orientacion: dir, diametro },
+                { id: 'OUT', label: 'Salida', relX: dir.dx*offset, relY: dir.dy*offset, relZ: dir.dz*offset, orientacion: dir, diametro }
+            ];
+        },
+        // Nuevo generador para reductores
+        REDUCER: (line, param, diametro) => {
+            const dir = calculateLineDirection(line, param);
+            const offset = getComponentOffset('REDUCER', diametro);
+            const dMenor = diametro * 0.625;
+            return [
+                { id: 'IN', label: 'Entrada', relX: -dir.dx*offset, relY: -dir.dy*offset, relZ: -dir.dz*offset, orientacion: dir, diametro },
+                { id: 'OUT', label: 'Salida', relX: dir.dx*offset, relY: dir.dy*offset, relZ: dir.dz*offset, orientacion: dir, diametro: dMenor }
+            ];
         }
     };
 
@@ -386,26 +791,43 @@ const SmartFlowCatalog = (function() {
                 components[key].generarPuertos = baseGenerators.CROSS;
             }
         }
+        
+        // Extender generadores para válvulas, reductores, etc.
+        for (const [key, comp] of Object.entries(components)) {
+            if (comp.generarPuertos) continue;
+            const tipo = comp.tipo || '';
+            if (tipo.includes('VALVE') || tipo === 'GATE_VALVE' || tipo === 'GLOBE_VALVE' || 
+                tipo === 'BALL_VALVE' || tipo === 'BUTTERFLY_VALVE' || tipo === 'CHECK_VALVE' ||
+                tipo === 'DIAPHRAGM_VALVE' || tipo === 'CONTROL_VALVE' || tipo === 'DRAIN_VALVE' ||
+                tipo === 'PLUG_VALVE' || tipo === 'CHOKE_VALVE' || tipo === 'CRYOGENIC_VALVE' ||
+                tipo === 'GLASS_LINED_VALVE' || tipo === 'ASEPTIC_VALVE' || tipo === 'CHECK_VALVE_SANITARY') {
+                comp.generarPuertos = baseGenerators.VALVE;
+            } else if (tipo.includes('REDUCER') || tipo.includes('REDUCING')) {
+                comp.generarPuertos = baseGenerators.REDUCER;
+            }
+        }
     }
     assignGenerators();
 
-    // -------------------- 5. DIMENSIONES ESTÁNDAR --------------------
+    // ================================================================
+    // 5. DIMENSIONES ESTÁNDAR (ORIGINAL + AMPLIADO)
+    // ================================================================
     const dimensiones = {
-        "codo_90": { 2: 152, 3: 229, 4: 305, 6: 457, 8: 610 },
-        "codo_45": { 2: 80, 3: 110, 4: 150, 6: 230 },
-        "tee": { 2: 127, 3: 152, 4: 178, 6: 229, 8: 279 },
-        "tee_reducing": { 3: 160, 4: 190, 6: 240 },
-        "cross": { 2: 140, 3: 165, 4: 200, 6: 260 },
-        "valvula_compuerta": { 2: 178, 3: 203, 4: 229, 6: 267 },
-        "valvula_globo": { 2: 200, 3: 240, 4: 280, 6: 350 },
-        "valvula_bola": { 2: 150, 3: 180, 4: 210, 6: 260 },
-        "valvula_mariposa": { 2: 100, 3: 120, 4: 140, 6: 180 },
-        "reduccion": { "4x3": 102, "6x4": 152, "3x2": 89, "8x6": 203, "6x3": 178, "default": 120 },
+        "codo_90": { 2: 152, 3: 229, 4: 305, 6: 457, 8: 610, 10: 762, 12: 914 },
+        "codo_45": { 2: 80, 3: 110, 4: 150, 6: 230, 8: 305, 10: 381, 12: 457 },
+        "tee": { 2: 127, 3: 152, 4: 178, 6: 229, 8: 279, 10: 330, 12: 381 },
+        "tee_reducing": { 3: 160, 4: 190, 6: 240, 8: 290, 10: 340 },
+        "cross": { 2: 140, 3: 165, 4: 200, 6: 260, 8: 320 },
+        "valvula_compuerta": { 2: 178, 3: 203, 4: 229, 6: 267, 8: 292, 10: 330, 12: 356 },
+        "valvula_globo": { 2: 200, 3: 240, 4: 280, 6: 350, 8: 400, 10: 450 },
+        "valvula_bola": { 2: 150, 3: 180, 4: 210, 6: 260, 8: 310, 10: 360, 12: 410 },
+        "valvula_mariposa": { 2: 100, 3: 120, 4: 140, 6: 180, 8: 220, 10: 260, 12: 300 },
+        "reduccion": { "4x3": 102, "6x4": 152, "3x2": 89, "8x6": 203, "6x3": 178, "10x8": 254, "12x10": 305, "default": 120 },
         "insercion_ppr": { 2: 45, 3: 60, 4: 75, 6: 90 },
         "insercion_hdpe": { 2: 50, 3: 65, 4: 80, 6: 100 },
         "union_universal": { 2: 70, 3: 90, 4: 110, 6: 140 },
         "adaptador_macho": { 2: 45, 3: 60, 4: 75, 6: 90 },
-        "brida_espesor_150": { 2: 12, 3: 15, 4: 18, 6: 22 }
+        "brida_espesor_150": { 2: 12, 3: 15, 4: 18, 6: 22, 8: 25, 10: 28, 12: 32 }
     };
 
     function getComponentDimension(tipo, diametro) {
@@ -438,7 +860,327 @@ const SmartFlowCatalog = (function() {
         return 0;
     }
 
-    // -------------------- 6. FACTORÍA VISUAL 3D --------------------
+    // ================================================================
+    // 6. EXTENSIONES v3.6: ALIAS, CATEGORÍAS, BÚSQUEDA
+    // ================================================================
+    
+    // ─── ALIAS DE EQUIPOS (multilingüe + abreviaturas) ──────────
+    const _equipmentAliases = {
+        // Español
+        'tanque_vertical': 'tanque_v', 'tanquevertical': 'tanque_v',
+        'tanque_horizontal': 'tanque_h', 'tanquehorizontal': 'tanque_h',
+        'bomba_centrifuga': 'bomba', 'bombacentrifuga': 'bomba',
+        'bomba_dosificadora': 'bomba_dosificacion',
+        'intercambiador_calor': 'intercambiador', 'intercambiador': 'intercambiador',
+        'torre_destilacion': 'torre', 'torredestilacion': 'torre',
+        'compresor': 'compresor',
+        'separador': 'separador',
+        'caldera': 'caldera',
+        'clarificador': 'clarificador',
+        'filtro_arena': 'filtro_arena', 'filtroarena': 'filtro_arena',
+        'osmosis': 'osmosis', 'osmosis_inversa': 'osmosis',
+        'bomba_sumergible': 'bomba_sumergible', 'bombasumergible': 'bomba_sumergible',
+        'tanque_acero': 'tanque_acero', 'tanqueacero': 'tanque_acero',
+        'pasteurizador': 'pasteurizador',
+        'homogeneizador': 'homogeneizador',
+        'plataforma': 'plataforma',
+        // Inglés
+        'pump': 'bomba', 'centrifugal_pump': 'bomba',
+        'dosing_pump': 'bomba_dosificacion',
+        'vertical_tank': 'tanque_v', 'horizontal_tank': 'tanque_h',
+        'heat_exchanger': 'intercambiador',
+        'distillation_tower': 'torre', 'column': 'torre',
+        'reactor': 'reactor',
+        'boiler': 'caldera',
+        'compressor': 'compresor',
+        'separator': 'separador',
+        'clarifier': 'clarificador',
+        'sand_filter': 'filtro_arena',
+        'reverse_osmosis': 'osmosis',
+        'submersible_pump': 'bomba_sumergible',
+        'stainless_tank': 'tanque_acero',
+        'pasteurizer': 'pasteurizador',
+        'homogenizer': 'homogeneizador',
+        'platform': 'plataforma',
+        // Abreviaturas comunes P&ID
+        'tk': 'tanque_v', 'tank': 'tanque_v',
+        'p': 'bomba', 'pu': 'bomba',
+        'e': 'intercambiador', 'ex': 'intercambiador',
+        't': 'torre', 'tw': 'torre',
+        'r': 'reactor', 'rx': 'reactor',
+        'v': 'tanque_v', 'ves': 'tanque_v',
+        'c': 'compresor', 'cp': 'compresor',
+        'bo': 'caldera',
+        'sep': 'separador',
+        'cl': 'clarificador',
+        'sf': 'filtro_arena',
+        'ro': 'osmosis',
+        // Nuevos v4.0
+        '3phase_separator': 'separador_trifasico', 'slug': 'slug_catcher',
+        'flare': 'antorcha', 'heater_treater': 'calentador_fuego_directo',
+        'degasifier': 'desgasificador', 'softener': 'suavizador',
+        'carbon_filter': 'filtro_carbon', 'acf': 'filtro_carbon',
+        'thickener': 'espesador', 'flocculator': 'floculador',
+        'electrolytic_cell': 'celda_electrolitica',
+        'fractionator': 'columna_fraccionadora', 'fractionating_column': 'columna_fraccionadora',
+        'condenser': 'condensador', 'evaporator': 'evaporador',
+        'crystallizer': 'cristalizador', 'rotary_dryer': 'secador_rotativo',
+        'absorber': 'absorbedor', 'stripper': 'stripper',
+        'jacketed_reactor': 'reactor_encamisado', 'autoclave': 'autoclave',
+        'centrifuge': 'centrifuga', 'filter_press': 'filtro_prensa',
+        'agitator': 'agitador', 'mixer': 'agitador', 'mill': 'molino',
+        'drum_filter': 'filtro_tambor',
+        'aseptic_tank': 'tanque_aseptico', 'cheese_vat': 'tina_quesera',
+        'disc_centrifuge': 'centrifuga_discos', 'uht': 'esterilizador_uht',
+        'filler': 'llenadora', 'hp_homogenizer': 'homogeneizador_ap'
+    };
+
+    // ─── CATEGORÍAS DE COMPONENTES ──────────────────────────────
+    const _componentCategories = {
+        'TEE': ['TEE_EQUAL', 'TEE_REDUCING'],
+        'CROSS': ['CROSS'],
+        'PIPE': ['PIPE'],
+        'ELBOW': ['ELBOW_90_LR', 'ELBOW_90_SR', 'ELBOW_45', 'ELBOW_90_PPR', 'ELBOW_45_PPR', 'ELBOW_90_HDPE', 'ELBOW_45_HDPE', 'ELBOW_90_PVC', 'ELBOW_45_PVC', 'ELBOW_90_LR_SS', 'ELBOW_45_SS', 'ELBOW_90_SANITARY'],
+        'VALVE': ['GATE_VALVE', 'GLOBE_VALVE', 'BUTTERFLY_VALVE', 'BALL_VALVE', 'CHECK_VALVE', 'DIAPHRAGM_VALVE', 'CONTROL_VALVE', 'PRESSURE_RELIEF', 'SAFETY_VALVE', 'DRAIN_VALVE', 'AIR_RELEASE', 'SAMPLE_VALVE', 'PLUG_VALVE', 'CHOKE_VALVE', 'CRYOGENIC_VALVE', 'GLASS_LINED_VALVE', 'ASEPTIC_VALVE', 'CHECK_VALVE_SANITARY', 'SAMPLE_VALVE_SANITARY'],
+        'REDUCER': ['CONCENTRIC_REDUCER', 'ECCENTRIC_REDUCER'],
+        'FLANGE': ['WELD_NECK_FLANGE', 'SLIP_ON_FLANGE', 'BLIND_FLANGE', 'LAP_JOINT_FLANGE', 'RTJ_FLANGE', 'ORIFICE_FLANGE'],
+        'STUB_END': ['STUB_END'],
+        'CAP': ['CAP'],
+        'UNION': ['UNION', 'UNION_ACERO'],
+        'NIPPLE': ['NIPPLE'],
+        'BULKHEAD': ['BULKHEAD'],
+        'TRANSITION': ['TRANSITION'],
+        'EXPANSION_JOINT': ['EXPANSION_JOINT'],
+        'STRAINER': ['Y_STRAINER', 'T_STRAINER', 'BASKET_STRAINER', 'DUPLEX_STRAINER', 'SANITARY_STRAINER'],
+        'STEAM_TRAP': ['STEAM_TRAP', 'STEAM_TRAP_SANITARY'],
+        'INSTRUMENT': ['PRESSURE_GAUGE', 'TEMPERATURE_GAUGE', 'FLOW_METER', 'PRESSURE_TRANSMITTER', 'LEVEL_TRANSMITTER', 'TEMPERATURE_TRANSMITTER', 'ROTAMETER', 'SIGHT_GLASS', 'LEVEL_SWITCH_RANA', 'CORIOLIS_METER', 'PH_METER', 'CONDUCTIVITY_METER', 'SANITARY_PRESSURE_GAUGE'],
+        'SUPPORT': ['PIPE_SHOE', 'U_BOLT', 'GUIDE', 'ANCHOR', 'HANGER', 'SPRING_HANGER', 'PIPE_CLAMP'],
+        'QUICK_CONNECT': ['CAMLOCK', 'QUICK_CONNECT'],
+        'HOSE': ['FLEXIBLE_HOSE', 'METALLIC_HOSE', 'PTFE_HOSE'],
+        'SAFETY': ['SILENCER', 'VENT_SILENCER', 'FLAME_ARRESTER', 'VACUUM_BREAKER', 'DETONATION_ARRESTER', 'RUPTURE_DISC'],
+        'SAMPLE': ['SAMPLE_COOLER', 'SAMPLE_VALVE', 'PISTON_SAMPLE_VALVE'],
+        'INJECTION': ['CHEMICAL_INJECTOR', 'CHLORINE_EJECTOR'],
+        'MIXER': ['STATIC_MIXER']
+    };
+
+    // ─── ALIAS DE COMPONENTES (abreviaturas ISO) ────────────────
+    const _componentAliases = {
+        'TE': 'TEE_EQUAL', 'TR': 'TEE_REDUCING', 'CR': 'CROSS',
+        'EL': 'ELBOW_90_LR', 'E4': 'ELBOW_45', 'ES': 'ELBOW_90_SR',
+        'GV': 'GATE_VALVE', 'GL': 'GLOBE_VALVE', 'VB': 'BUTTERFLY_VALVE',
+        'BA': 'BALL_VALVE', 'CK': 'CHECK_VALVE', 'DV': 'DIAPHRAGM_VALVE',
+        'CV': 'CONTROL_VALVE', 'RV': 'PRESSURE_RELIEF', 'SV': 'SAFETY_VALVE',
+        'RC': 'CONCENTRIC_REDUCER', 'RE': 'ECCENTRIC_REDUCER',
+        'FL': 'WELD_NECK_FLANGE', 'FB': 'BLIND_FLANGE',
+        'CA': 'CAP', 'UN': 'UNION', 'NI': 'NIPPLE',
+        'BH': 'BULKHEAD', 'AM': 'TRANSITION', 'AH': 'TRANSITION',
+        'EJ': 'EXPANSION_JOINT', 'YS': 'Y_STRAINER', 'TS': 'T_STRAINER', 'BS': 'BASKET_STRAINER',
+        'ST': 'STEAM_TRAP', 'SF': 'STEAM_TRAP',
+        'PG': 'PRESSURE_GAUGE', 'TG': 'TEMPERATURE_GAUGE', 'FM': 'FLOW_METER',
+        'PT': 'PRESSURE_TRANSMITTER', 'LT': 'LEVEL_TRANSMITTER', 'TT': 'TEMPERATURE_TRANSMITTER',
+        'RO': 'ROTAMETER', 'SG': 'SIGHT_GLASS', 'LS': 'LEVEL_SWITCH_RANA',
+        'SH': 'PIPE_SHOE', 'UB': 'U_BOLT', 'GD': 'GUIDE', 'AN': 'ANCHOR', 'HG': 'HANGER', 'PC': 'PIPE_CLAMP',
+        'CM': 'CAMLOCK', 'CF': 'CAMLOCK', 'QC': 'QUICK_CONNECT',
+        'HO': 'FLEXIBLE_HOSE', 'HM': 'METALLIC_HOSE', 'HP': 'PTFE_HOSE',
+        'SI': 'SILENCER', 'VS': 'SILENCER', 'FA': 'FLAME_ARRESTER',
+        'SC': 'SAMPLE_COOLER',
+        // Español
+        'codo': 'ELBOW_90_LR', 'codo90': 'ELBOW_90_LR', 'codo45': 'ELBOW_45',
+        'tee': 'TEE_EQUAL', 'te': 'TEE_EQUAL',
+        'valvula': 'GATE_VALVE', 'valvula_compuerta': 'GATE_VALVE',
+        'valvula_globo': 'GLOBE_VALVE', 'valvula_bola': 'BALL_VALVE',
+        'valvula_mariposa': 'BUTTERFLY_VALVE', 'valvula_check': 'CHECK_VALVE',
+        'brida': 'WELD_NECK_FLANGE', 'brida_cuello': 'WELD_NECK_FLANGE',
+        'brida_ciega': 'BLIND_FLANGE', 'brida_slipon': 'SLIP_ON_FLANGE',
+        'reduccion': 'CONCENTRIC_REDUCER', 'reductor': 'CONCENTRIC_REDUCER',
+        'manometro': 'PRESSURE_GAUGE', 'termometro': 'TEMPERATURE_GAUGE',
+        'caudalimetro': 'FLOW_METER', 'flujometro': 'FLOW_METER',
+        'filtro_y': 'Y_STRAINER', 'filtro_canasta': 'BASKET_STRAINER',
+        'trampa_vapor': 'STEAM_TRAP',
+        'soporte': 'PIPE_SHOE', 'abrazadera': 'PIPE_CLAMP', 'colgador': 'HANGER',
+        'manguera': 'FLEXIBLE_HOSE', 'silenciador': 'SILENCER',
+        'union': 'UNION', 'union_universal': 'UNION',
+        'niple': 'NIPPLE', 'tapón': 'CAP', 'tapon': 'CAP',
+        'pasamuros': 'BULKHEAD', 'adaptador': 'TRANSITION',
+        'junta_expansion': 'EXPANSION_JOINT',
+        'valvula_seguridad': 'SAFETY_VALVE', 'valvula_alivio': 'PRESSURE_RELIEF',
+        'valvula_purga': 'DRAIN_VALVE', 'valvula_muestreo': 'SAMPLE_VALVE',
+        // Nuevos v4.0
+        'PV': 'PLUG_VALVE', 'CH': 'CHOKE_VALVE', 'FR': 'RTJ_FLANGE',
+        'IJ': 'INSULATING_JOINT', 'DS': 'DUPLEX_STRAINER', 'RD': 'RUPTURE_DISC',
+        'AD': 'AIR_DIFFUSER', 'EC': 'CHLORINE_EJECTOR', 'SM': 'STATIC_MIXER',
+        'CV': 'CRYOGENIC_VALVE', 'FO': 'ORIFICE_FLANGE', 'SB': 'SPECTACLE_BLIND',
+        'AV': 'ASEPTIC_VALVE', 'DA': 'DETONATION_ARRESTER',
+        'valvula_aséptica': 'ASEPTIC_VALVE', 'mirilla_sanitaria': 'SIGHT_GLASS_SANITARY',
+        'spray_ball': 'SPRAY_BALL', 'disco_ruptura': 'RUPTURE_DISC'
+    };
+
+    // ─── FUNCIONES DE RESOLUCIÓN ──────────────────────────────────
+    function resolveEquipmentAlias(tipo) {
+        if (!tipo) return null;
+        const key = tipo.toLowerCase().replace(/[\s-]+/g, '_');
+        if (_equipmentAliases[key]) return _equipmentAliases[key];
+        if (equipment[tipo]) return tipo;
+        if (equipment[key]) return key;
+        for (const eqKey of Object.keys(equipment)) {
+            if (eqKey.includes(key) || key.includes(eqKey)) return eqKey;
+        }
+        return null;
+    }
+
+    function resolveComponentAlias(compName) {
+        if (!compName) return null;
+        const key = compName.toLowerCase().replace(/[\s-]+/g, '_');
+        if (_componentAliases[key]) return _componentAliases[key];
+        if (components[compName]) return compName;
+        const upper = compName.toUpperCase();
+        for (const compKey of Object.keys(components)) {
+            if (compKey.toUpperCase() === upper) return compKey;
+            if (compKey.toUpperCase().includes(upper)) return compKey;
+        }
+        return null;
+    }
+
+    function findComponentByTypeAndSpec(tipo, specId) {
+        const resolved = resolveComponentAlias(tipo);
+        if (!resolved) return null;
+        for (const [key, comp] of Object.entries(components)) {
+            if (comp.tipo === resolved) {
+                if (!specId) return { key, component: comp };
+                if (comp.spec === specId) return { key, component: comp };
+            }
+        }
+        for (const [key, comp] of Object.entries(components)) {
+            if (comp.tipo === resolved) return { key, component: comp };
+        }
+        return null;
+    }
+
+    function getComponentsByCategory(category) {
+        const cat = category.toUpperCase();
+        const tipos = _componentCategories[cat];
+        if (!tipos) return [];
+        const result = [];
+        for (const [key, comp] of Object.entries(components)) {
+            if (tipos.includes(comp.tipo)) {
+                result.push({ key, ...comp });
+            }
+        }
+        return result;
+    }
+
+    function getComponentsBySpec(specId) {
+        const result = [];
+        for (const [key, comp] of Object.entries(components)) {
+            if (comp.spec === specId) {
+                result.push({ key, ...comp });
+            }
+        }
+        return result;
+    }
+
+    function getComponentDimensionInterpolated(tipo, diametro) {
+        const exact = getComponentDimension(tipo, diametro);
+        if (exact > 0) return exact;
+        
+        let lookupTipo = tipo;
+        const tipoUpper = (tipo || '').toUpperCase();
+        if (tipoUpper.includes('TEE_REDUCING')) lookupTipo = 'tee_reducing';
+        else if (tipoUpper.includes('TEE')) lookupTipo = 'tee';
+        else if (tipoUpper.includes('ELBOW_90')) lookupTipo = 'codo_90';
+        else if (tipoUpper.includes('ELBOW_45')) lookupTipo = 'codo_45';
+        else if (tipoUpper.includes('GATE_VALVE')) lookupTipo = 'valvula_compuerta';
+        else if (tipoUpper.includes('GLOBE_VALVE')) lookupTipo = 'valvula_globo';
+        else if (tipoUpper.includes('BALL_VALVE')) lookupTipo = 'valvula_bola';
+        else if (tipoUpper.includes('BUTTERFLY_VALVE')) lookupTipo = 'valvula_mariposa';
+        else if (tipoUpper.includes('UNION')) lookupTipo = 'union_universal';
+        else if (tipoUpper.includes('TRANSITION')) lookupTipo = 'adaptador_macho';
+        
+        const dims = dimensiones[lookupTipo];
+        if (!dims || typeof dims !== 'object') return 50;
+        
+        const diameters = Object.keys(dims).map(Number).sort((a, b) => a - b);
+        if (diameters.length === 0) return 50;
+        if (diametro <= diameters[0]) return dims[diameters[0]];
+        if (diametro >= diameters[diameters.length - 1]) return dims[diameters[diameters.length - 1]];
+        
+        for (let i = 0; i < diameters.length - 1; i++) {
+            if (diametro >= diameters[i] && diametro <= diameters[i + 1]) {
+                const d1 = diameters[i], d2 = diameters[i + 1];
+                const v1 = dims[d1], v2 = dims[d2];
+                const ratio = (diametro - d1) / (d2 - d1);
+                return Math.round(v1 + (v2 - v1) * ratio);
+            }
+        }
+        return 50;
+    }
+
+    function validateSpec(specId) {
+        if (!specId) return { valid: false, message: 'Spec no especificada' };
+        const spec = specs[specId];
+        if (!spec) {
+            const similares = Object.keys(specs).filter(s => 
+                s.toUpperCase().includes(specId.toUpperCase())
+            );
+            return {
+                valid: false,
+                message: `Spec "${specId}" no encontrada`,
+                suggestions: similares.length > 0 ? similares : Object.keys(specs).slice(0, 5)
+            };
+        }
+        return { valid: true, spec: spec, id: specId };
+    }
+
+    function createLine(tag, diameter, material, spec, points, options = {}) {
+        const specDef = specs[spec] || specs['PPR_PN12_5'];
+        const pts = points.map((p, i) => ({
+            x: p.x || p[0] || 0,
+            y: p.y || p[1] || 0,
+            z: p.z || p[2] || 0
+        }));
+        
+        const line = {
+            tag: tag || `L-${Date.now().toString(36).slice(-4)}`,
+            diameter: diameter || 4,
+            material: material || specDef.material || 'PPR',
+            spec: spec || 'PPR_PN12_5',
+            _cachedPoints: pts,
+            points3D: pts,
+            waypoints: pts.slice(1, -1),
+            components: options.components || [],
+            puertos: options.puertos || [],
+            origin: options.origin || null,
+            destination: options.destination || null,
+            isoColor: options.color || specDef.color || 0x7c3aed
+        };
+        
+        if (pts.length >= 2) {
+            if (!line.puertos.find(p => p.id === '0' || p.id === 'START')) {
+                const dirStart = { dx: pts[1].x - pts[0].x, dy: pts[1].y - pts[0].y, dz: pts[1].z - pts[0].z };
+                const len = Math.hypot(dirStart.dx, dirStart.dy, dirStart.dz) || 1;
+                line.puertos.push({
+                    id: 'START', label: 'Inicio', relX: 0, relY: 0, relZ: 0,
+                    orientacion: { dx: dirStart.dx/len, dy: dirStart.dy/len, dz: dirStart.dz/len },
+                    diametro: diameter, status: 'open'
+                });
+            }
+            if (!line.puertos.find(p => p.id === '1' || p.id === 'END')) {
+                const n = pts.length;
+                const dirEnd = { dx: pts[n-1].x - pts[n-2].x, dy: pts[n-1].y - pts[n-2].y, dz: pts[n-1].z - pts[n-2].z };
+                const len = Math.hypot(dirEnd.dx, dirEnd.dy, dirEnd.dz) || 1;
+                line.puertos.push({
+                    id: 'END', label: 'Fin', relX: 0, relY: 0, relZ: 0,
+                    orientacion: { dx: dirEnd.dx/len, dy: dirEnd.dy/len, dz: dirEnd.dz/len },
+                    diametro: diameter, status: 'open'
+                });
+            }
+        }
+        return line;
+    }
+
+    // ================================================================
+    // 7. FACTORÍA VISUAL 3D
+    // ================================================================
     function createEquipmentMesh(eq) {
         let geometry, material;
         const spec = specs[eq.spec] || specs["ACERO_150_RF"];
@@ -446,15 +1188,30 @@ const SmartFlowCatalog = (function() {
         const mat = new THREE.MeshStandardMaterial({ color: color, metalness: 0.6, roughness: 0.4 });
         
         switch(eq.tipo) {
-            case 'tanque_v': case 'torre': case 'reactor':
+            case 'tanque_v': case 'torre': case 'reactor': case 'desgasificador': case 'desmineralizador':
+            case 'suavizador': case 'filtro_carbon': case 'filtro_arena': case 'clarificador':
+            case 'columna_fraccionadora': case 'evaporador': case 'cristalizador':
+            case 'absorbedor': case 'stripper': case 'reactor_encamisado': case 'autoclave':
+            case 'agitador': case 'centrifuga_discos': case 'tanque_aseptico':
                 const radius = (eq.diametro || 1000) / 2;
                 const height = eq.altura || 1500;
                 geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
                 break;
-            case 'tanque_h':
+            case 'tanque_h': case 'separador_trifasico': case 'slug_catcher':
+            case 'calentador_fuego_directo': case 'secador_rotativo': case 'centrifuga':
+            case 'filtro_tambor': case 'molino':
                 const rx = (eq.largo || 2000) / 2;
                 const ry = (eq.diametro || 1000) / 2;
-                geometry = new THREE.BoxGeometry(rx*2, ry*2, ry*2);
+                geometry = new THREE.CylinderGeometry(ry, ry, rx*2, 32);
+                geometry.rotateZ(Math.PI / 2);
+                break;
+            case 'espesador':
+                const rTop = (eq.diametro || 3000) / 2;
+                const rBot = 200;
+                geometry = new THREE.CylinderGeometry(rTop, rBot, eq.altura || 4000, 32);
+                break;
+            case 'antorcha':
+                geometry = new THREE.CylinderGeometry(100, 100, eq.altura || 15000, 16);
                 break;
             default:
                 const width = eq.largo || 800;
@@ -474,20 +1231,54 @@ const SmartFlowCatalog = (function() {
         return new THREE.Group();
     }
 
-    // -------------------- 7. API PÚBLICA --------------------
+    // ================================================================
+    // 8. API PÚBLICA
+    // ================================================================
     return {
+        // Especificaciones
         getSpecs: () => specs,
         getSpec: (id) => specs[id] || null,
-        getEquipment: (tipo) => equipment[tipo] || null,
-        getComponent: (id) => components[id] || null,
+        
+        // Equipos
+        getEquipment: (tipo) => {
+            const resolved = resolveEquipmentAlias(tipo);
+            return resolved ? equipment[resolved] : null;
+        },
+        listEquipmentTypes: () => Object.keys(equipment),
+        getEquipmentAliases: () => _equipmentAliases,
+        resolveEquipmentAlias,
+        
+        // Componentes
+        getComponent: (id) => {
+            if (components[id]) return components[id];
+            const resolved = resolveComponentAlias(id);
+            if (resolved && components[resolved]) return components[resolved];
+            const byType = findComponentByTypeAndSpec(id);
+            return byType ? byType.component : null;
+        },
+        listComponentTypes: () => Object.keys(components),
+        getComponentAliases: () => _componentAliases,
+        getComponentCategories: () => _componentCategories,
+        resolveComponentAlias,
+        findComponentByTypeAndSpec,
+        getComponentsByCategory,
+        getComponentsBySpec,
+        
+        // Dimensiones
         getDimension: (tipo, diametro) => dimensiones[tipo]?.[diametro] || null,
         getComponentDimension,
-        listEquipmentTypes: () => Object.keys(equipment),
-        listComponentTypes: () => Object.keys(components),
+        getComponentDimensionInterpolated,
+        
+        // Validación
+        validateSpec,
         listSpecs: () => Object.keys(specs),
         
+        // Factorías
+        createLine,
         createEquipment: function(tipo, tag, x, y, z, opciones = {}) {
-            const def = equipment[tipo];
+            const resolved = resolveEquipmentAlias(tipo);
+            if (!resolved) return null;
+            const def = equipment[resolved];
             if (!def) return null;
             
             let defaultSpec = 'ACERO_150_RF';
@@ -495,20 +1286,28 @@ const SmartFlowCatalog = (function() {
             if (material.includes('PPR')) defaultSpec = 'PPR_PN12_5';
             else if (material.includes('PE') || material.includes('HDPE')) defaultSpec = 'HDPE_PE100';
             else if (material.includes('PVC')) defaultSpec = 'PVC_SCH80';
+            else if (material.includes('CPVC')) defaultSpec = 'CPVC_SCH80';
+            else if (material.includes('PVDF')) defaultSpec = 'PVDF_PN16';
             else if (material.includes('ACERO') || material.includes('CS') || material.includes('CARBONO')) defaultSpec = 'ACERO_150_RF';
             else if (material.includes('INOX') || material.includes('STAINLESS')) defaultSpec = 'SS_150_RF';
+            else if (material.includes('DUPLEX')) defaultSpec = 'DUPLEX_150_RF';
+            else if (material.includes('HASTELLOY')) defaultSpec = 'HASTELLOY_150_RF';
+            else if (material.includes('FRP')) defaultSpec = 'FRP';
+            
+            const specValidation = validateSpec(opciones.spec || defaultSpec);
+            const finalSpec = specValidation.valid ? (opciones.spec || defaultSpec) : defaultSpec;
             
             let base = {
-                tag, tipo, posX: x, posY: y, posZ: z,
+                tag, tipo: resolved, posX: x, posY: y, posZ: z,
                 diametro: opciones.diametro || 1000,
                 altura: opciones.altura || 1500,
                 material: opciones.material || 'CS',
-                spec: opciones.spec || defaultSpec,
+                spec: finalSpec,
                 largo: opciones.largo || 1000,
                 ancho: opciones.ancho || 1000
             };
 
-            if (tipo === 'plataforma') {
+            if (resolved === 'plataforma') {
                 base.largo = opciones.largo || 6000;
                 base.ancho = opciones.ancho || 3000;
                 base.altura = opciones.altura || 400;
@@ -520,13 +1319,15 @@ const SmartFlowCatalog = (function() {
             }));
             return base;
         },
-        
         createComponent: (compId, opciones = {}) => {
-            const def = components[compId];
-            if (!def) return null;
+            const def = components[compId] || null;
+            if (!def) {
+                const resolved = findComponentByTypeAndSpec(compId, opciones.spec);
+                if (resolved) return { ...resolved.component, ...opciones, id: resolved.key };
+                return null;
+            }
             return { ...def, ...opciones, id: compId };
         },
-
         createFitting: function(tipo, diam, spec, pos) {
             const generator = baseGenerators[tipo] || baseGenerators['TEE_EQUAL'];
             return {
@@ -537,12 +1338,10 @@ const SmartFlowCatalog = (function() {
                 puertos: generator(null, 0, diam).map(p => ({ ...p, spec, status: 'open' }))
             };
         },
-
         getFittingForConnection: function(d_origen, d_destino, spec) {
             if (d_origen === d_destino) return { tipo: 'TEE_EQUAL', diam: d_origen };
             return { tipo: 'REDUCCION_CONCENTRICA', d_mayor: Math.max(d_origen, d_destino), d_menor: Math.min(d_origen, d_destino) };
         },
-
         getTransitionAccessories: (lineMaterial, componentMaterial, diameter) => {
             const from = (lineMaterial || '').toUpperCase().trim();
             const to   = (componentMaterial || '').toUpperCase().trim();
@@ -573,7 +1372,6 @@ const SmartFlowCatalog = (function() {
             if (fromIsMetal && toIsMetal) return { left: 'UNION_CS_3000', right: 'UNION_CS_3000' };
             return null;
         },
-        
         createEquipmentMesh,
         createLineMesh
     };
