@@ -1,7 +1,9 @@
+
 // ============================================================
-// SMARTFLOW ORCHESTRATOR v3.1 - Punto de Entrada Unificado
+// SMARTFLOW ORCHESTRATOR v3.2 - Punto de Entrada Unificado
 // Archivo: js/main.js
 // Orquesta: Core + Catalog + Router + Commands + Renderer3D + Annotations + Notifications
+// Corrección v3.2: Recuperado Ctrl+Shift+R para Resumen
 // ============================================================
 
 (function() {
@@ -29,10 +31,11 @@
     window._commandHistory = window._commandHistory || [];
     
     // ================================================================
-    // 3. SISTEMA DE NOTIFICACIONES (Fachada unificada)
+    // 3. SISTEMA DE NOTIFICACIONES
     // ================================================================
-    function notify(message, isError = false) {
-        // Notificaciones visuales + sonido + voz (si el módulo existe)
+    function notify(message, isError) {
+        isError = isError || false;
+        
         if (typeof SmartFlowNotifications !== 'undefined') {
             SmartFlowNotifications.notify(message, isError ? 'error' : 'info', {
                 sound: true,
@@ -40,7 +43,6 @@
             });
         }
         
-        // Status bar (compatibilidad con sistema original)
         if (statusMsgEl) {
             statusMsgEl.textContent = message;
             statusMsgEl.style.color = isError ? '#ef4444' : '#00f2ff';
@@ -73,6 +75,7 @@
     function autoCenter() {
         if (typeof SmartFlowRenderer3D !== 'undefined' && SmartFlowRenderer3D.isReady()) {
             SmartFlowRenderer3D.zoomToFit();
+            notify("✅ Vista centrada correctamente", false);
         }
     }
     
@@ -140,7 +143,6 @@
     function initModules() {
         console.log('🚀 Inicializando módulos SmartEngp 3D...');
         
-        // Verificar dependencias críticas
         if (typeof THREE === 'undefined') {
             console.error('❌ THREE.js no está cargado');
             notify('Error: Motor 3D no disponible (THREE.js no cargado)', true);
@@ -151,11 +153,9 @@
             return;
         }
         
-        // 1. Core (siempre primero)
         SmartFlowCore.init(notify, scheduleRender, updatePropertyPanel);
         console.log('  ✅ Core v5.5 inicializado');
         
-        // 2. Notificaciones (independiente)
         if (typeof SmartFlowNotifications !== 'undefined') {
             SmartFlowNotifications.init({
                 toastEnabled: true,
@@ -169,13 +169,11 @@
             console.log('  ✅ Notificaciones inicializadas');
         }
         
-        // 3. Router
         if (typeof SmartFlowRouter !== 'undefined') {
             SmartFlowRouter.init(SmartFlowCore, SmartFlowCatalog, notify, scheduleRender);
             console.log('  ✅ Router inicializado');
         }
         
-        // 4. Motor 3D (con pequeño delay para asegurar DOM listo)
         if (typeof SmartFlowRenderer3D !== 'undefined' && viewportContainer) {
             setTimeout(function() {
                 const success = SmartFlowRenderer3D.init(viewportContainer, SmartFlowCore, SmartFlowCatalog, {
@@ -205,7 +203,6 @@
             }, 150);
         }
         
-        // 5. Anotaciones (después del motor 3D)
         if (typeof SmartFlowAnnotations !== 'undefined' && viewportContainer) {
             setTimeout(function() {
                 SmartFlowAnnotations.init(viewportContainer, SmartFlowCore, SmartFlowRenderer3D, SmartFlowCatalog, {
@@ -223,11 +220,9 @@
             }, 300);
         }
         
-        // 6. Comandos
         SmartFlowCommands.init(SmartFlowCore, SmartFlowCatalog, SmartFlowRenderer3D, notify, scheduleRender, voiceFn);
         console.log('  ✅ Comandos inicializados');
         
-        // Conectar notificaciones 3D
         if (typeof SmartFlowNotifications !== 'undefined' && typeof SmartFlowRenderer3D !== 'undefined') {
             SmartFlowNotifications.setRenderer3D(SmartFlowRenderer3D);
         }
@@ -325,7 +320,7 @@
     }
     
     // ================================================================
-    // 8. MTO, AUDITORÍA Y EXPORTACIONES
+    // 8A. MTO, AUDITORÍA Y EXPORTACIONES
     // ================================================================
     function exportarMTO() {
         const equipos = SmartFlowCore.getEquipos();
@@ -460,6 +455,105 @@
     }
     
     // ================================================================
+    // 8B. RESUMEN DEL PROYECTO
+    // ================================================================
+    function resumenProyecto() {
+        const equipos = SmartFlowCore.getEquipos();
+        const lines = SmartFlowCore.getLines();
+        
+        const tanquesV = equipos.filter(function(e) { return e.tipo === 'tanque_v'; });
+        const tanquesH = equipos.filter(function(e) { return e.tipo === 'tanque_h'; });
+        const bombas = equipos.filter(function(e) { return e.tipo && e.tipo.includes('bomba'); });
+        const intercambiadores = equipos.filter(function(e) { return e.tipo === 'intercambiador' || e.tipo === 'condensador'; });
+        const torres = equipos.filter(function(e) { return e.tipo === 'torre' || e.tipo === 'columna_fraccionadora' || e.tipo === 'antorcha'; });
+        const reactores = equipos.filter(function(e) { return e.tipo && (e.tipo.includes('reactor') || e.tipo === 'autoclave'); });
+        const filtros = equipos.filter(function(e) { return e.tipo && (e.tipo.includes('filtro') || e.tipo.includes('osmosis')); });
+        const plataformas = equipos.filter(function(e) { return e.tipo === 'plataforma'; });
+        const otros = equipos.length - tanquesV.length - tanquesH.length - bombas.length - 
+                      intercambiadores.length - torres.length - reactores.length - filtros.length - plataformas.length;
+        
+        let totalCodos = 0, totalTees = 0, totalReducciones = 0, totalValvulas = 0;
+        let totalBridas = 0, totalInstrumentos = 0, totalSoportes = 0, totalOtrosComp = 0;
+        
+        lines.forEach(function(l) {
+            if (l.components) {
+                l.components.forEach(function(c) {
+                    const type = (c.type || '').toUpperCase();
+                    if (type.includes('ELBOW')) totalCodos++;
+                    else if (type.includes('TEE')) totalTees++;
+                    else if (type.includes('REDUCER')) totalReducciones++;
+                    else if (type.includes('VALVE')) totalValvulas++;
+                    else if (type.includes('FLANGE')) totalBridas++;
+                    else if (type.includes('GAUGE') || type.includes('METER') || type.includes('TRANSMITTER') || type.includes('INSTRUMENT') || type.includes('SIGHT')) totalInstrumentos++;
+                    else if (type.includes('SHOE') || type.includes('BOLT') || type.includes('GUIDE') || type.includes('ANCHOR') || type.includes('HANGER') || type.includes('CLAMP')) totalSoportes++;
+                    else totalOtrosComp++;
+                });
+            }
+            
+            const pts = SmartFlowCore.getLinePoints(l) || [];
+            if (pts.length > 2) {
+                for (let i = 1; i < pts.length - 1; i++) {
+                    const d1x = pts[i].x - pts[i-1].x, d1y = pts[i].y - pts[i-1].y, d1z = pts[i].z - pts[i-1].z;
+                    const d2x = pts[i+1].x - pts[i].x, d2y = pts[i+1].y - pts[i].y, d2z = pts[i+1].z - pts[i].z;
+                    const len1 = Math.sqrt(d1x*d1x + d1y*d1y + d1z*d1z) || 1;
+                    const len2 = Math.sqrt(d2x*d2x + d2y*d2y + d2z*d2z) || 1;
+                    const dot = (d1x*d2x + d1y*d2y + d1z*d2z) / (len1 * len2);
+                    const angle = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+                    if (angle > 5) totalCodos++;
+                }
+            }
+        });
+        
+        let longitudTotal = 0;
+        lines.forEach(function(l) {
+            const pts = SmartFlowCore.getLinePoints(l) || [];
+            for (let i = 0; i < pts.length - 1; i++) {
+                longitudTotal += Math.sqrt(
+                    Math.pow(pts[i+1].x - pts[i].x, 2) +
+                    Math.pow(pts[i+1].y - pts[i].y, 2) +
+                    Math.pow(pts[i+1].z - pts[i].z, 2)
+                );
+            }
+        });
+        
+        let msg = '═══════════════════════════════════\n';
+        msg += '    📋 RESUMEN DEL PROYECTO\n';
+        msg += '       ' + (window.currentProjectName || 'Sin nombre') + '\n';
+        msg += '═══════════════════════════════════\n\n';
+        
+        msg += '🏭 EQUIPOS (' + equipos.length + '):\n';
+        if (tanquesV.length) msg += '  • Tanques Verticales: ' + tanquesV.length + '\n';
+        if (tanquesH.length) msg += '  • Tanques Horizontales: ' + tanquesH.length + '\n';
+        if (bombas.length) msg += '  • Bombas: ' + bombas.length + '\n';
+        if (intercambiadores.length) msg += '  • Intercambiadores: ' + intercambiadores.length + '\n';
+        if (torres.length) msg += '  • Torres/Columnas: ' + torres.length + '\n';
+        if (reactores.length) msg += '  • Reactores: ' + reactores.length + '\n';
+        if (filtros.length) msg += '  • Filtros/Ósmosis: ' + filtros.length + '\n';
+        if (plataformas.length) msg += '  • Plataformas: ' + plataformas.length + '\n';
+        if (otros > 0) msg += '  • Otros equipos: ' + otros + '\n';
+        
+        msg += '\n📏 TUBERÍAS (' + lines.length + '):\n';
+        msg += '  • Longitud total: ' + (longitudTotal / 1000).toFixed(2) + ' m\n';
+        
+        const totalComp = totalCodos + totalTees + totalReducciones + totalValvulas + totalBridas + totalInstrumentos + totalSoportes + totalOtrosComp;
+        if (totalComp > 0) {
+            msg += '\n🔩 COMPONENTES (' + totalComp + '):\n';
+            if (totalCodos) msg += '  • Codos: ' + totalCodos + '\n';
+            if (totalTees) msg += '  • Tees/Cruces: ' + totalTees + '\n';
+            if (totalReducciones) msg += '  • Reducciones: ' + totalReducciones + '\n';
+            if (totalValvulas) msg += '  • Válvulas: ' + totalValvulas + '\n';
+            if (totalBridas) msg += '  • Bridas: ' + totalBridas + '\n';
+            if (totalInstrumentos) msg += '  • Instrumentos: ' + totalInstrumentos + '\n';
+            if (totalSoportes) msg += '  • Soportes: ' + totalSoportes + '\n';
+            if (totalOtrosComp) msg += '  • Otros: ' + totalOtrosComp + '\n';
+        }
+        
+        msg += '\n═══════════════════════════════════';
+        
+        notify(msg, false);
+    }
+    
+    // ================================================================
     // 9. CONSOLA DE COMANDOS
     // ================================================================
     const _commandHistory = [];
@@ -534,7 +628,7 @@
         scheduleRender();
         
         const primera = lineas[0].toLowerCase();
-        const infoCommands = ['info', 'coordenadas', 'nodos', 'listar', 'list', 'ayuda', 'help', 'bom', 'mto', 'audit', 'measure', 'medir', 'distancia', 'macro list', 'macro lista'];
+        const infoCommands = ['info', 'coordenadas', 'nodos', 'listar', 'list', 'ayuda', 'help', 'bom', 'mto', 'audit', 'measure', 'medir', 'distancia', 'macro list', 'macro lista', 'resumen'];
         const esInformativo = infoCommands.some(function(c) { return primera.startsWith(c); });
         
         if (!esInformativo && commandPanel) {
@@ -585,7 +679,7 @@
     }
     
     // ================================================================
-    // 13. ATAJOS DE TECLADO
+    // 13. ATAJOS DE TECLADO (COMPLETOS - IGUAL QUE ORIGINAL)
     // ================================================================
     function setupKeyboardShortcuts() {
         document.addEventListener('keydown', function(e) {
@@ -595,13 +689,14 @@
             if (e.ctrlKey && e.shiftKey && !isInCommandPanel) {
                 switch(e.key.toUpperCase()) {
                     case 'C': e.preventDefault(); abrirPanelComandos(); break;
-                    case 'U': e.preventDefault(); SmartFlowCore.undo(); scheduleRender(); notify("↩️ Deshecho", false); break;
-                    case 'Y': e.preventDefault(); SmartFlowCore.redo(); scheduleRender(); notify("↪️ Rehecho", false); break;
+                    case 'R': e.preventDefault(); resumenProyecto(); break;
+                    case 'V': e.preventDefault(); autoCenter(); break;
+                    case 'U': e.preventDefault(); SmartFlowCore.undo(); scheduleRender(); notify("↩️ Acción deshecha", false); break;
+                    case 'Y': e.preventDefault(); SmartFlowCore.redo(); scheduleRender(); notify("↪️ Acción rehecha", false); break;
                     case 'M': e.preventDefault(); exportarMTO(); break;
                     case 'P': e.preventDefault(); exportarPDF(); break;
                     case 'E': e.preventDefault(); exportarPCF(); break;
                     case 'S': e.preventDefault(); guardarProyecto(); break;
-                    case 'V': e.preventDefault(); autoCenter(); break;
                     case 'A': e.preventDefault(); auditarModelo(); break;
                 }
             }
@@ -624,7 +719,6 @@
             if (el) el.addEventListener('click', accion);
         }
         
-        // Welcome
         vincular('welcome-new-project', function() { if (projectModal) projectModal.style.display = 'flex'; });
         vincular('welcome-open-project', function() {
             cargarProyecto();
@@ -633,7 +727,6 @@
         vincular('modal-accept', iniciarNuevoProyecto);
         vincular('modal-skip', saltarNombreProyecto);
         
-        // Archivo
         vincular('btnNew', nuevoProyecto);
         vincular('btnOpen', cargarProyecto);
         vincular('btnSave', guardarProyecto);
@@ -642,23 +735,19 @@
         vincular('btnExportPCF', exportarPCF);
         vincular('btnImportPCF', importarPCF);
         
-        // Edición
         vincular('btnUndo', function() { SmartFlowCore.undo(); scheduleRender(); notify("↩️ Deshecho", false); });
         vincular('btnRedo', function() { SmartFlowCore.redo(); scheduleRender(); notify("↪️ Rehecho", false); });
         
-        // Vistas
         vincular('btnViewIso', function() { setView('iso'); });
         vincular('btnViewTop', function() { setView('top'); });
         vincular('btnViewFront', function() { setView('front'); });
         vincular('btnZoomFit', autoCenter);
         
-        // Comandos
         vincular('btnCommand', abrirPanelComandos);
         vincular('closeCommand', function() { if (commandPanel) commandPanel.style.display = 'none'; });
         vincular('clearCommand', function() { if (commandText) { commandText.value = ''; _historyIndex = _commandHistory.length; } });
         vincular('runCommands', ejecutarComando);
         
-        // Herramientas
         vincular('btnFullscreen', toggleFullscreen);
         vincular('btnFullscreenCenter', autoCenter);
         vincular('btnFullscreenExit', exitFullscreen);
@@ -666,9 +755,9 @@
         vincular('btnMTO', exportarMTO);
         vincular('btnPDF', exportarPDF);
         vincular('btnAudit', auditarModelo);
+        vincular('btnSummary', resumenProyecto);
         vincular('btnClosePanel', closePanel);
         
-        // Equipos rápidos
         vincular('btnAddTank', function() {
             const equipos = SmartFlowCore.getEquipos();
             const tag = 'TK-' + (equipos.filter(function(e) { return e.tipo === 'tanque_v'; }).length + 1);
@@ -709,7 +798,6 @@
             notify("✅ " + tag + " creado", false);
         });
         
-        // Dropdowns
         function setupDropdown(buttonId) {
             const btn = document.getElementById(buttonId);
             if (!btn) return;
@@ -728,7 +816,6 @@
             }
         });
         
-        // Comandos: Enter ejecuta, flechas navegan historial
         if (commandText) {
             commandText.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -744,7 +831,6 @@
             });
         }
         
-        // Redimensionar ventana
         window.addEventListener('resize', function() {
             // El motor 3D maneja su propio resize internamente
         });
@@ -756,7 +842,6 @@
     function init() {
         window.currentProjectName = window.currentProjectName || 'Proyecto_SmartEngp3D';
         
-        // Animación de splash
         const splashStatus = document.getElementById('splash-status');
         const messages = [
             "Cargando Three.js WebGL...",
@@ -787,7 +872,6 @@
             if (welcomePanel) welcomePanel.classList.remove('welcome-hidden');
         }, 4800);
         
-        // Forzar zoom inicial después de que todo esté listo
         setTimeout(function() {
             autoCenter();
         }, 600);
