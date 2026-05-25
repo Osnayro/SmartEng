@@ -1,6 +1,5 @@
-
 // ============================================================
-// SMARTFLOW ORCHESTRATOR v3.0 - Punto de Entrada Unificado
+// SMARTFLOW ORCHESTRATOR v3.1 - Punto de Entrada Unificado
 // Archivo: js/main.js
 // Orquesta: Core + Catalog + Router + Commands + Renderer3D + Annotations + Notifications
 // ============================================================
@@ -27,14 +26,13 @@
     // ================================================================
     let voiceEnabled = true;
     
-    // Historial de comandos para macros
     window._commandHistory = window._commandHistory || [];
     
     // ================================================================
     // 3. SISTEMA DE NOTIFICACIONES (Fachada unificada)
     // ================================================================
     function notify(message, isError = false) {
-        // Toast + Sonido + Voz + Consola (sistema nuevo)
+        // Notificaciones visuales + sonido + voz (si el módulo existe)
         if (typeof SmartFlowNotifications !== 'undefined') {
             SmartFlowNotifications.notify(message, isError ? 'error' : 'info', {
                 sound: true,
@@ -42,7 +40,7 @@
             });
         }
         
-        // Status bar (compatibilidad)
+        // Status bar (compatibilidad con sistema original)
         if (statusMsgEl) {
             statusMsgEl.textContent = message;
             statusMsgEl.style.color = isError ? '#ef4444' : '#00f2ff';
@@ -64,8 +62,7 @@
     // 4. RENDERIZADO Y ACTUALIZACIÓN
     // ================================================================
     function scheduleRender() {
-        // SmartFlowRenderer3D tiene su propio loop, pero forzamos rebuild si es necesario
-        if (typeof SmartFlowRenderer3D !== 'undefined') {
+        if (typeof SmartFlowRenderer3D !== 'undefined' && SmartFlowRenderer3D.isReady()) {
             SmartFlowRenderer3D.rebuildScene();
         }
         if (typeof SmartFlowAnnotations !== 'undefined') {
@@ -74,7 +71,7 @@
     }
     
     function autoCenter() {
-        if (typeof SmartFlowRenderer3D !== 'undefined') {
+        if (typeof SmartFlowRenderer3D !== 'undefined' && SmartFlowRenderer3D.isReady()) {
             SmartFlowRenderer3D.zoomToFit();
         }
     }
@@ -91,49 +88,43 @@
         
         if (sidePanel) sidePanel.classList.remove('hidden');
         
-        panelContent.innerHTML = `
-            <div class="prop-group">
-                <span class="prop-label">TAG</span>
-                <span class="prop-value" style="color:var(--accent-cyan);">${info.tag || 'N/A'}</span>
-            </div>
-            <div class="prop-group">
-                <span class="prop-label">TIPO</span>
-                <span class="prop-value">${info.tipo || 'Desconocido'}</span>
-            </div>
-            <div class="prop-group">
-                <span class="prop-label">MATERIAL</span>
-                <span class="prop-value">${info.material || 'N/A'}</span>
-            </div>
-            <div class="prop-group">
-                <span class="prop-label">DIÁMETRO</span>
-                <span class="prop-value">${info.diametro || 'N/A'}</span>
-            </div>
-            ${info.dimensiones ? `
-            <div class="prop-group">
-                <span class="prop-label">POSICIÓN</span>
-                <span class="prop-value">(${info.dimensiones.posX?.toFixed(0) || 0}, ${info.dimensiones.posY?.toFixed(0) || 0}, ${info.dimensiones.posZ?.toFixed(0) || 0})</span>
-            </div>` : ''}
-            ${info.spool ? `
-            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
-            <div class="prop-group">
-                <span class="prop-label">LONGITUD TOTAL</span>
-                <span class="prop-value">${info.spool.longitudTotalM} m</span>
-            </div>
-            <div class="prop-group">
-                <span class="prop-label">JUNTAS ESTIMADAS</span>
-                <span class="prop-value">${info.spool.juntasEstimadas}</span>
-            </div>` : ''}
-            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
-            <div class="prop-group">
-                <span class="prop-label">PUERTOS</span>
-                ${info.puertos && info.puertos.length ? info.puertos.map(p => `
-                    <div class="port-item">
-                        <span>${p.id} ⌀${p.diametro}"</span>
-                        <span class="${p.status === 'open' ? 'port-open' : 'port-connected'}">${p.status === 'open' ? 'DISPONIBLE' : 'CONECTADO a ' + (p.connectedTo || '')}</span>
-                    </div>
-                `).join('') : '<p style="color:#64748b; font-size:11px;">Sin puertos</p>'}
-            </div>
-        `;
+        let html = '';
+        
+        html += '<div class="prop-group"><span class="prop-label">TAG</span><span class="prop-value" style="color:var(--accent-cyan);">' + (info.tag || 'N/A') + '</span></div>';
+        html += '<div class="prop-group"><span class="prop-label">TIPO</span><span class="prop-value">' + (info.tipo || 'Desconocido') + '</span></div>';
+        html += '<div class="prop-group"><span class="prop-label">MATERIAL</span><span class="prop-value">' + (info.material || 'N/A') + '</span></div>';
+        html += '<div class="prop-group"><span class="prop-label">DIÁMETRO</span><span class="prop-value">' + (info.diametro || 'N/A') + '</span></div>';
+        
+        if (info.dimensiones) {
+            html += '<div class="prop-group"><span class="prop-label">POSICIÓN</span><span class="prop-value">(' + 
+                (info.dimensiones.posX || 0).toFixed(0) + ', ' + 
+                (info.dimensiones.posY || 0).toFixed(0) + ', ' + 
+                (info.dimensiones.posZ || 0).toFixed(0) + ')</span></div>';
+        }
+        
+        if (info.spool) {
+            html += '<hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">';
+            html += '<div class="prop-group"><span class="prop-label">LONGITUD TOTAL</span><span class="prop-value">' + info.spool.longitudTotalM + ' m</span></div>';
+            html += '<div class="prop-group"><span class="prop-label">JUNTAS ESTIMADAS</span><span class="prop-value">' + info.spool.juntasEstimadas + '</span></div>';
+        }
+        
+        html += '<hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">';
+        html += '<div class="prop-group"><span class="prop-label">PUERTOS</span>';
+        
+        if (info.puertos && info.puertos.length) {
+            info.puertos.forEach(function(p) {
+                html += '<div class="port-item">';
+                html += '<span>' + p.id + ' ⌀' + (p.diametro || '?') + '"</span>';
+                html += '<span class="' + (p.status === 'open' ? 'port-open' : 'port-connected') + '">' + 
+                        (p.status === 'open' ? 'DISPONIBLE' : 'CONECTADO a ' + (p.connectedTo || '')) + '</span>';
+                html += '</div>';
+            });
+        } else {
+            html += '<p style="color:#64748b; font-size:11px;">Sin puertos</p>';
+        }
+        html += '</div>';
+        
+        panelContent.innerHTML = html;
     }
     
     function closePanel() {
@@ -147,10 +138,24 @@
     // 6. INICIALIZACIÓN DE MÓDULOS
     // ================================================================
     function initModules() {
+        console.log('🚀 Inicializando módulos SmartEngp 3D...');
+        
+        // Verificar dependencias críticas
+        if (typeof THREE === 'undefined') {
+            console.error('❌ THREE.js no está cargado');
+            notify('Error: Motor 3D no disponible (THREE.js no cargado)', true);
+        }
+        
+        if (typeof SmartFlowCore === 'undefined') {
+            console.error('❌ SmartFlowCore no está cargado');
+            return;
+        }
+        
         // 1. Core (siempre primero)
         SmartFlowCore.init(notify, scheduleRender, updatePropertyPanel);
+        console.log('  ✅ Core v5.5 inicializado');
         
-        // 2. Notificaciones (capa independiente)
+        // 2. Notificaciones (independiente)
         if (typeof SmartFlowNotifications !== 'undefined') {
             SmartFlowNotifications.init({
                 toastEnabled: true,
@@ -161,55 +166,66 @@
                 voiceLang: 'es-ES',
                 consoleEnabled: true
             });
+            console.log('  ✅ Notificaciones inicializadas');
         }
         
-        // 3. Router (conexiones inteligentes)
+        // 3. Router
         if (typeof SmartFlowRouter !== 'undefined') {
             SmartFlowRouter.init(SmartFlowCore, SmartFlowCatalog, notify, scheduleRender);
+            console.log('  ✅ Router inicializado');
         }
         
-        // 4. Motor 3D (Three.js)
+        // 4. Motor 3D (con pequeño delay para asegurar DOM listo)
         if (typeof SmartFlowRenderer3D !== 'undefined' && viewportContainer) {
-            SmartFlowRenderer3D.init(viewportContainer, SmartFlowCore, SmartFlowCatalog, {
-                enableShadows: true,
-                enableAO: true,
-                enableAA: true,
-                isoAngle: 30,
-                backgroundColor: 0x0a0e17
-            });
-            
-            // Callback de selección
-            SmartFlowRenderer3D.onSelection((selectionData) => {
-                if (selectionData && selectionData.obj) {
-                    const info = SmartFlowCore.getPropertyInfo(selectionData.obj.tag);
-                    updatePropertyPanel(info);
+            setTimeout(function() {
+                const success = SmartFlowRenderer3D.init(viewportContainer, SmartFlowCore, SmartFlowCatalog, {
+                    enableShadows: true,
+                    isoAngle: 30,
+                    backgroundColor: 0x0a0e17
+                });
+                
+                if (success) {
+                    console.log('  ✅ Renderer3D v3.1 inicializado');
+                    
+                    SmartFlowRenderer3D.onSelection(function(selectionData) {
+                        if (selectionData && selectionData.obj) {
+                            const info = SmartFlowCore.getPropertyInfo(selectionData.obj.tag);
+                            updatePropertyPanel(info);
+                        } else {
+                            updatePropertyPanel(null);
+                        }
+                        if (typeof SmartFlowAnnotations !== 'undefined') {
+                            SmartFlowAnnotations.markDirty();
+                        }
+                    });
                 } else {
-                    updatePropertyPanel(null);
+                    console.error('  ❌ Renderer3D falló');
+                    notify('Error: No se pudo iniciar el motor 3D', true);
                 }
-                if (typeof SmartFlowAnnotations !== 'undefined') {
-                    SmartFlowAnnotations.markDirty();
-                }
-            });
+            }, 150);
         }
         
-        // 5. Anotaciones 2D (capa sobre el 3D)
+        // 5. Anotaciones (después del motor 3D)
         if (typeof SmartFlowAnnotations !== 'undefined' && viewportContainer) {
-            SmartFlowAnnotations.init(viewportContainer, SmartFlowCore, SmartFlowRenderer3D, SmartFlowCatalog, {
-                standard: 'ISA',
-                showEquipmentTags: true,
-                showPipeTags: true,
-                showDimensions: true,
-                showBOMTable: false,
-                showFlowArrows: true,
-                showNorthArrow: true,
-                showElevationMarkers: true,
-                dualDimension: true,
-                bomPosition: 'bottom-right'
-            });
+            setTimeout(function() {
+                SmartFlowAnnotations.init(viewportContainer, SmartFlowCore, SmartFlowRenderer3D, SmartFlowCatalog, {
+                    standard: 'ISA',
+                    showEquipmentTags: true,
+                    showPipeTags: true,
+                    showDimensions: true,
+                    showBOMTable: false,
+                    showFlowArrows: true,
+                    showNorthArrow: true,
+                    showElevationMarkers: true,
+                    dualDimension: true
+                });
+                console.log('  ✅ Anotaciones inicializadas');
+            }, 300);
         }
         
-        // 6. Comandos (último, usa todos los anteriores)
+        // 6. Comandos
         SmartFlowCommands.init(SmartFlowCore, SmartFlowCatalog, SmartFlowRenderer3D, notify, scheduleRender, voiceFn);
+        console.log('  ✅ Comandos inicializados');
         
         // Conectar notificaciones 3D
         if (typeof SmartFlowNotifications !== 'undefined' && typeof SmartFlowRenderer3D !== 'undefined') {
@@ -219,6 +235,7 @@
         SmartFlowCore.setVoice(voiceEnabled);
         
         notify("SmartEngp 3D - Sistema listo", false);
+        console.log('🎯 Todos los módulos inicializados');
     }
     
     // ================================================================
@@ -227,7 +244,7 @@
     function guardarProyecto() {
         const state = SmartFlowCore.exportProject();
         localStorage.setItem('smartengp_3d_project', state);
-        notify("✅ Proyecto guardado", false);
+        notify("✅ Proyecto guardado en el navegador", false);
     }
     
     function cargarProyecto() {
@@ -238,12 +255,12 @@
                 SmartFlowCore.importState(state.data || state);
                 scheduleRender();
                 autoCenter();
-                notify("✅ Proyecto cargado", false);
+                notify("✅ Proyecto cargado correctamente", false);
             } catch (e) {
-                notify("Error al cargar el proyecto", true);
+                notify("Error al cargar el proyecto: archivo corrupto", true);
             }
         } else {
-            notify("No hay proyecto guardado", true);
+            notify("No hay proyecto guardado en el navegador", true);
         }
     }
     
@@ -252,7 +269,7 @@
         const blob = new Blob([state], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `${window.currentProjectName || 'Proyecto'}_SmartEngp3D.json`;
+        a.download = (window.currentProjectName || 'Proyecto') + '_SmartEngp3D.json';
         a.click();
         notify("✅ Proyecto exportado como JSON", false);
     }
@@ -261,19 +278,19 @@
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json';
-        input.onchange = (e) => {
+        input.onchange = function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (ev) => {
+            reader.onload = function(ev) {
                 try {
                     const state = JSON.parse(ev.target.result);
                     SmartFlowCore.importState(state.data || state);
                     scheduleRender();
                     autoCenter();
-                    notify("✅ Proyecto importado", false);
+                    notify("✅ Proyecto importado correctamente", false);
                 } catch (err) {
-                    notify("Error al importar", true);
+                    notify("Error al importar el proyecto: archivo corrupto", true);
                 }
             };
             reader.readAsText(file);
@@ -282,7 +299,7 @@
     }
     
     function nuevoProyecto() {
-        if (confirm("¿Crear nuevo proyecto? Se perderán los cambios no guardados.")) {
+        if (confirm("¿Desea crear un nuevo proyecto? Se perderán los cambios no guardados.")) {
             SmartFlowCore.nuevoProyecto();
             scheduleRender();
             autoCenter();
@@ -296,7 +313,7 @@
         if (projectModal) projectModal.style.display = 'none';
         if (welcomePanel) welcomePanel.classList.add('welcome-hidden');
         SmartFlowCore.nuevoProyecto();
-        if (statusMsgEl) statusMsgEl.textContent = `Proyecto: ${window.currentProjectName} | SmartEngp 3D`;
+        if (statusMsgEl) statusMsgEl.textContent = 'Proyecto: ' + (window.currentProjectName || 'Sin nombre') + ' | SmartEngp 3D';
         scheduleRender();
         autoCenter();
     }
@@ -304,24 +321,24 @@
     function saltarNombreProyecto() {
         if (projectModal) projectModal.style.display = 'none';
         if (welcomePanel) welcomePanel.classList.add('welcome-hidden');
-        if (statusMsgEl) statusMsgEl.textContent = `Proyecto: ${window.currentProjectName} | SmartEngp 3D`;
+        if (statusMsgEl) statusMsgEl.textContent = 'Proyecto: ' + (window.currentProjectName || 'Sin nombre') + ' | SmartEngp 3D';
     }
     
     // ================================================================
-    // 8. MTO Y AUDITORÍA
+    // 8. MTO, AUDITORÍA Y EXPORTACIONES
     // ================================================================
     function exportarMTO() {
         const equipos = SmartFlowCore.getEquipos();
         const lines = SmartFlowCore.getLines();
         let items = [];
         
-        equipos.forEach(eq => {
+        equipos.forEach(function(eq) {
             if (eq.tipo !== 'colector' && eq.tipo !== 'plataforma') {
                 items.push([eq.tag, eq.tipo || 'Equipo', "Und", 1]);
             }
         });
         
-        lines.forEach(line => {
+        lines.forEach(function(line) {
             let length = 0;
             const pts = SmartFlowCore.getLinePoints(line);
             if (pts) {
@@ -329,44 +346,51 @@
                     length += Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y, pts[i+1].z - pts[i].z);
                 }
             }
-            items.push([line.tag, `Tubo ${line.material || 'N/D'} ${line.diameter}" ${line.spec || ''}`, "m", (length / 1000).toFixed(2)]);
+            items.push([line.tag, 'Tubo ' + (line.material || 'N/D') + ' ' + (line.diameter || '?') + '" ' + (line.spec || ''), "m", (length / 1000).toFixed(2)]);
             
             if (line.components) {
-                line.components.forEach(comp => {
-                    items.push([comp.tag || `COMP-${line.tag}`, comp.type || 'Componente', "Und", 1]);
+                line.components.forEach(function(comp) {
+                    items.push([comp.tag || 'COMP-' + line.tag, comp.type || 'Componente', "Und", 1]);
                 });
             }
         });
         
-        if (items.length === 0) { notify("No hay elementos para exportar", true); return; }
+        if (items.length === 0) {
+            notify("No hay elementos para exportar", true);
+            return;
+        }
         
-        const ws = XLSX.utils.aoa_to_sheet([["Tag", "Descripción", "Unidad", "Cantidad"], ...items]);
+        const ws = XLSX.utils.aoa_to_sheet([["Tag", "Descripción", "Unidad", "Cantidad"]].concat(items));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "MTO");
-        XLSX.writeFile(wb, `MTO_${window.currentProjectName || 'Proyecto'}_${Date.now()}.xlsx`);
-        notify("✅ MTO exportado (XLSX)", false);
+        XLSX.writeFile(wb, 'MTO_' + (window.currentProjectName || 'Proyecto') + '_' + Date.now() + '.xlsx');
+        notify("✅ MTO exportado correctamente (XLSX)", false);
     }
     
     function auditarModelo() {
         if (SmartFlowCore.auditModel) {
             const report = SmartFlowCore.auditModel();
             notify(report, false);
+        } else {
+            notify("Función de auditoría no disponible", true);
         }
     }
     
     function exportarPDF() {
-        if (typeof SmartFlowRenderer3D === 'undefined') {
+        if (typeof SmartFlowRenderer3D === 'undefined' || !SmartFlowRenderer3D.isReady()) {
             notify("Motor 3D no disponible", true);
             return;
         }
         
         const renderer = SmartFlowRenderer3D.getRenderer();
-        if (!renderer) return;
+        if (!renderer) {
+            notify("Renderer no disponible", true);
+            return;
+        }
         
         const canvas3D = renderer.domElement;
-        const canvas2D = SmartFlowAnnotations ? SmartFlowAnnotations.getCanvas() : null;
+        const canvas2D = (typeof SmartFlowAnnotations !== 'undefined') ? SmartFlowAnnotations.getCanvas() : null;
         
-        // Combinar capas
         const combined = document.createElement('canvas');
         combined.width = canvas3D.width;
         combined.height = canvas3D.height;
@@ -381,46 +405,50 @@
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         pdf.addImage(imgData, 'PNG', 5, 5, pageWidth - 10, pageHeight - 10);
-        pdf.save(`Isometrico_${window.currentProjectName || 'Proyecto'}.pdf`);
-        notify("✅ PDF isométrico generado", false);
+        pdf.save('Isometrico_' + (window.currentProjectName || 'Proyecto') + '.pdf');
+        notify("✅ PDF isométrico generado correctamente", false);
     }
     
     function exportarPCF() {
         const lines = SmartFlowCore.getLines();
-        if (lines.length === 0) { notify("No hay líneas para exportar", true); return; }
+        if (lines.length === 0) {
+            notify("No hay líneas para exportar", true);
+            return;
+        }
         
         let pcf = '';
-        lines.forEach(line => {
-            pcf += `PIPE\n`;
-            pcf += `    ITEM-CODE ${line.tag}\n`;
-            pcf += `    PIPING-SPEC ${line.spec || 'STD'}\n`;
-            pcf += `    MATERIAL ${line.material || 'N/D'}\n`;
-            pcf += `    DIAMETER ${(line.diameter || 4) * 25.4}\n`;
+        lines.forEach(function(line) {
+            pcf += 'PIPE\n';
+            pcf += '    ITEM-CODE ' + line.tag + '\n';
+            pcf += '    PIPING-SPEC ' + (line.spec || 'STD') + '\n';
+            pcf += '    MATERIAL ' + (line.material || 'N/D') + '\n';
+            pcf += '    DIAMETER ' + ((line.diameter || 4) * 25.4) + '\n';
             
             const pts = SmartFlowCore.getLinePoints(line) || [];
             for (let i = 0; i < pts.length - 1; i++) {
-                pcf += `    END-POINT ${pts[i].x.toFixed(3)} ${pts[i].y.toFixed(3)} ${pts[i].z.toFixed(3)} ${pts[i+1].x.toFixed(3)} ${pts[i+1].y.toFixed(3)} ${pts[i+1].z.toFixed(3)}\n`;
+                pcf += '    END-POINT ' + pts[i].x.toFixed(3) + ' ' + pts[i].y.toFixed(3) + ' ' + pts[i].z.toFixed(3) + ' ' + 
+                       pts[i+1].x.toFixed(3) + ' ' + pts[i+1].y.toFixed(3) + ' ' + pts[i+1].z.toFixed(3) + '\n';
             }
-            pcf += `\n`;
+            pcf += '\n';
         });
         
         const blob = new Blob([pcf], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `${window.currentProjectName || 'Proyecto'}.pcf`;
+        a.download = (window.currentProjectName || 'Proyecto') + '.pcf';
         a.click();
-        notify("✅ Archivo PCF exportado", false);
+        notify("✅ Archivo PCF exportado correctamente", false);
     }
     
     function importarPCF() {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.pcf,.txt';
-        input.onchange = (e) => {
+        input.onchange = function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (ev) => {
+                reader.onload = function(ev) {
                     SmartFlowCommands.importPCF(ev.target.result);
                     scheduleRender();
                     autoCenter();
@@ -446,22 +474,23 @@
         _commandHistory.push(trimmed);
         if (_commandHistory.length > MAX_HISTORY) _commandHistory.shift();
         _historyIndex = _commandHistory.length;
-        window._commandHistory = [..._commandHistory];
+        window._commandHistory = _commandHistory.slice();
         updateHistoryIndicator();
     }
     
     function updateHistoryIndicator() {
         const indicator = document.getElementById('historyIndicator');
         if (indicator) {
-            indicator.textContent = _commandHistory.length > 0 
-                ? `⏺ ${_commandHistory.length} comandos (↑↓ navegar)` 
-                : '';
+            indicator.textContent = _commandHistory.length > 0 ? 
+                '⏺ ' + _commandHistory.length + ' comandos (↑↓ para navegar)' : '';
         }
     }
     
     function navigateHistory(direction) {
         if (!commandText) return;
-        if (_historyIndex === _commandHistory.length) _tempCommand = commandText.value;
+        if (_historyIndex === _commandHistory.length) {
+            _tempCommand = commandText.value;
+        }
         
         if (direction === 'up' && _historyIndex > 0) {
             _historyIndex--;
@@ -487,11 +516,12 @@
         const textoCompleto = commandText.value.trim();
         if (!textoCompleto) return;
         
-        const lineas = textoCompleto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const lineas = textoCompleto.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
         
         let success = true;
         if (lineas.length === 1) {
-            success = SmartFlowCommands.executeCommand(lineas[0]) !== false;
+            const resultado = SmartFlowCommands.executeCommand(lineas[0]);
+            success = (resultado !== false);
         } else {
             const ejecutados = SmartFlowCommands.executeBatch(lineas.join('\n'));
             success = ejecutados > 0;
@@ -503,11 +533,12 @@
         _historyIndex = _commandHistory.length;
         scheduleRender();
         
-        // Auto-cerrar para comandos de modificación
         const primera = lineas[0].toLowerCase();
         const infoCommands = ['info', 'coordenadas', 'nodos', 'listar', 'list', 'ayuda', 'help', 'bom', 'mto', 'audit', 'measure', 'medir', 'distancia', 'macro list', 'macro lista'];
-        if (!infoCommands.some(c => primera.startsWith(c))) {
-            if (commandPanel) commandPanel.style.display = 'none';
+        const esInformativo = infoCommands.some(function(c) { return primera.startsWith(c); });
+        
+        if (!esInformativo && commandPanel) {
+            commandPanel.style.display = 'none';
         }
     }
     
@@ -515,9 +546,8 @@
     // 10. VISTAS DE CÁMARA
     // ================================================================
     function setView(viewName) {
-        if (typeof SmartFlowRenderer3D !== 'undefined') {
+        if (typeof SmartFlowRenderer3D !== 'undefined' && SmartFlowRenderer3D.isReady()) {
             SmartFlowRenderer3D.setView(viewName);
-            notify(`🔭 Vista: ${viewName.toUpperCase()}`, false);
         }
     }
     
@@ -533,8 +563,10 @@
         }
         
         const btnVoice = document.getElementById('btnVoice');
-        if (btnVoice) btnVoice.textContent = voiceEnabled ? '🔊' : '🔇';
-        if (btnVoice) btnVoice.style.color = voiceEnabled ? '' : '#ef4444';
+        if (btnVoice) {
+            btnVoice.textContent = voiceEnabled ? '🔊' : '🔇';
+            btnVoice.style.color = voiceEnabled ? '' : '#ef4444';
+        }
         
         notify(voiceEnabled ? "✅ Voz activada" : "🔇 Voz desactivada", false);
     }
@@ -544,16 +576,12 @@
     // ================================================================
     function toggleFullscreen() {
         document.body.classList.add('fullscreen-mode');
-        if (typeof SmartFlowRenderer3D !== 'undefined') {
-            SmartFlowRenderer3D.zoomToFit();
-        }
+        autoCenter();
     }
     
     function exitFullscreen() {
         document.body.classList.remove('fullscreen-mode');
-        if (typeof SmartFlowRenderer3D !== 'undefined') {
-            SmartFlowRenderer3D.zoomToFit();
-        }
+        autoCenter();
     }
     
     // ================================================================
@@ -564,7 +592,6 @@
             const activeEl = document.activeElement;
             const isInCommandPanel = activeEl && activeEl.id === 'commandText';
             
-            // Ctrl+Shift shortcuts (globales excepto en commandPanel)
             if (e.ctrlKey && e.shiftKey && !isInCommandPanel) {
                 switch(e.key.toUpperCase()) {
                     case 'C': e.preventDefault(); abrirPanelComandos(); break;
@@ -579,7 +606,6 @@
                 }
             }
             
-            // Escape para cerrar paneles
             if (e.key === 'Escape') {
                 if (commandPanel && commandPanel.style.display === 'block') {
                     commandPanel.style.display = 'none';
@@ -593,14 +619,14 @@
     // 14. CABLEADO DE BOTONES
     // ================================================================
     function bindEvents() {
-        const vincular = (id, accion) => {
+        function vincular(id, accion) {
             const el = document.getElementById(id);
             if (el) el.addEventListener('click', accion);
-        };
+        }
         
         // Welcome
-        vincular('welcome-new-project', () => { if (projectModal) projectModal.style.display = 'flex'; });
-        vincular('welcome-open-project', () => {
+        vincular('welcome-new-project', function() { if (projectModal) projectModal.style.display = 'flex'; });
+        vincular('welcome-open-project', function() {
             cargarProyecto();
             if (welcomePanel) welcomePanel.classList.add('welcome-hidden');
         });
@@ -617,19 +643,19 @@
         vincular('btnImportPCF', importarPCF);
         
         // Edición
-        vincular('btnUndo', () => { SmartFlowCore.undo(); scheduleRender(); notify("↩️ Deshecho", false); });
-        vincular('btnRedo', () => { SmartFlowCore.redo(); scheduleRender(); notify("↪️ Rehecho", false); });
+        vincular('btnUndo', function() { SmartFlowCore.undo(); scheduleRender(); notify("↩️ Deshecho", false); });
+        vincular('btnRedo', function() { SmartFlowCore.redo(); scheduleRender(); notify("↪️ Rehecho", false); });
         
         // Vistas
-        vincular('btnViewIso', () => setView('iso'));
-        vincular('btnViewTop', () => setView('top'));
-        vincular('btnViewFront', () => setView('front'));
+        vincular('btnViewIso', function() { setView('iso'); });
+        vincular('btnViewTop', function() { setView('top'); });
+        vincular('btnViewFront', function() { setView('front'); });
         vincular('btnZoomFit', autoCenter);
         
         // Comandos
         vincular('btnCommand', abrirPanelComandos);
-        vincular('closeCommand', () => { if (commandPanel) commandPanel.style.display = 'none'; });
-        vincular('clearCommand', () => { if (commandText) { commandText.value = ''; _historyIndex = _commandHistory.length; } });
+        vincular('closeCommand', function() { if (commandPanel) commandPanel.style.display = 'none'; });
+        vincular('clearCommand', function() { if (commandText) { commandText.value = ''; _historyIndex = _commandHistory.length; } });
         vincular('runCommands', ejecutarComando);
         
         // Herramientas
@@ -643,41 +669,44 @@
         vincular('btnClosePanel', closePanel);
         
         // Equipos rápidos
-        vincular('btnAddTank', () => {
+        vincular('btnAddTank', function() {
             const equipos = SmartFlowCore.getEquipos();
-            const tag = `TK-${equipos.filter(e => e.tipo === 'tanque_v').length + 1}`;
+            const tag = 'TK-' + (equipos.filter(function(e) { return e.tipo === 'tanque_v'; }).length + 1);
             const ult = equipos[equipos.length - 1];
             const x = ult ? ult.posX + 4000 : 0;
-            SmartFlowCommands.executeCommand(`create tanque_v ${tag} at (${x},1500,0) diam 2000 height 3000 material CS spec ACERO_150_RF`);
+            SmartFlowCommands.executeCommand('create tanque_v ' + tag + ' at (' + x + ',1500,0) diam 2000 height 3000 material CS spec ACERO_150_RF');
             scheduleRender();
-            notify(`✅ ${tag} creado`, false);
+            notify("✅ " + tag + " creado", false);
         });
-        vincular('btnAddPump', () => {
+        
+        vincular('btnAddPump', function() {
             const equipos = SmartFlowCore.getEquipos();
-            const tag = `P-${equipos.filter(e => e.tipo && e.tipo.includes('bomba')).length + 1}`;
+            const tag = 'P-' + (equipos.filter(function(e) { return e.tipo && e.tipo.includes('bomba'); }).length + 1);
             const ult = equipos[equipos.length - 1];
             const x = ult ? ult.posX + 4000 : 5000;
-            SmartFlowCommands.executeCommand(`create bomba ${tag} at (${x},800,0) diam 600 height 800 material CS`);
+            SmartFlowCommands.executeCommand('create bomba ' + tag + ' at (' + x + ',800,0) diam 600 height 800 material CS');
             scheduleRender();
-            notify(`✅ ${tag} creado`, false);
+            notify("✅ " + tag + " creado", false);
         });
-        vincular('btnAddExchanger', () => {
+        
+        vincular('btnAddExchanger', function() {
             const equipos = SmartFlowCore.getEquipos();
-            const tag = `E-${equipos.filter(e => e.tipo === 'intercambiador').length + 1}`;
+            const tag = 'E-' + (equipos.filter(function(e) { return e.tipo === 'intercambiador'; }).length + 1);
             const ult = equipos[equipos.length - 1];
             const x = ult ? ult.posX + 5000 : 3000;
-            SmartFlowCommands.executeCommand(`create intercambiador ${tag} at (${x},1200,0) diam 600 largo 3000 material CS`);
+            SmartFlowCommands.executeCommand('create intercambiador ' + tag + ' at (' + x + ',1200,0) diam 600 largo 3000 material CS');
             scheduleRender();
-            notify(`✅ ${tag} creado`, false);
+            notify("✅ " + tag + " creado", false);
         });
-        vincular('btnAddVessel', () => {
+        
+        vincular('btnAddVessel', function() {
             const equipos = SmartFlowCore.getEquipos();
-            const tag = `V-${equipos.filter(e => e.tipo === 'tanque_h').length + 1}`;
+            const tag = 'V-' + (equipos.filter(function(e) { return e.tipo === 'tanque_h'; }).length + 1);
             const ult = equipos[equipos.length - 1];
             const x = ult ? ult.posX + 4000 : 2000;
-            SmartFlowCommands.executeCommand(`create tanque_h ${tag} at (${x},1000,0) diam 1500 largo 3500 material CS`);
+            SmartFlowCommands.executeCommand('create tanque_h ' + tag + ' at (' + x + ',1000,0) diam 1500 largo 3500 material CS');
             scheduleRender();
-            notify(`✅ ${tag} creado`, false);
+            notify("✅ " + tag + " creado", false);
         });
         
         // Dropdowns
@@ -695,11 +724,11 @@
         
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.dropdown')) {
-                document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+                document.querySelectorAll('.dropdown.open').forEach(function(d) { d.classList.remove('open'); });
             }
         });
         
-        // Comando: Enter ejecuta, flechas navegan historial
+        // Comandos: Enter ejecuta, flechas navegan historial
         if (commandText) {
             commandText.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -715,16 +744,14 @@
             });
         }
         
-        // Redimensionar
-        window.addEventListener('resize', () => {
-            if (typeof SmartFlowRenderer3D !== 'undefined') {
-                // El motor 3D maneja su propio resize
-            }
+        // Redimensionar ventana
+        window.addEventListener('resize', function() {
+            // El motor 3D maneja su propio resize internamente
         });
     }
     
     // ================================================================
-    // 15. ARRANQUE
+    // 15. ARRANQUE DE LA APLICACIÓN
     // ================================================================
     function init() {
         window.currentProjectName = window.currentProjectName || 'Proyecto_SmartEngp3D';
@@ -734,13 +761,13 @@
         const messages = [
             "Cargando Three.js WebGL...",
             "Inicializando SmartFlowCore v5.5...",
-            "Cargando catálogo industrial...",
+            "Cargando catálogo industrial v4.0...",
             "Configurando motor de renderizado PBR...",
-            "Preparando sistema de anotaciones...",
+            "Preparando sistema de anotaciones ISA...",
             "¡SmartEngp 3D Activo!"
         ];
         let msgIndex = 0;
-        const interval = setInterval(() => {
+        const interval = setInterval(function() {
             if (msgIndex < messages.length && splashStatus) {
                 splashStatus.textContent = messages[msgIndex];
                 msgIndex++;
@@ -751,19 +778,19 @@
         bindEvents();
         setupKeyboardShortcuts();
         
-        setTimeout(() => {
+        setTimeout(function() {
             if (splashScreen) splashScreen.classList.add('splash-hidden');
             clearInterval(interval);
         }, 4500);
         
-        setTimeout(() => {
+        setTimeout(function() {
             if (welcomePanel) welcomePanel.classList.remove('welcome-hidden');
         }, 4800);
         
-        // Forzar resize inicial
-        setTimeout(() => {
+        // Forzar zoom inicial después de que todo esté listo
+        setTimeout(function() {
             autoCenter();
-        }, 500);
+        }, 600);
     }
     
     init();
