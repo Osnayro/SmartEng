@@ -10,15 +10,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Three.js + Extensiones (CDN) -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+    <!-- Three.js v0.157 - Carga clásica (estable, sin módulos ES) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/controls/OrbitControls.js"></script>
     
     <style>
         :root {
@@ -154,7 +148,7 @@
             background: var(--toolbar-bg); padding: 6px 12px; display: flex;
             align-items: center; flex-wrap: wrap; gap: 6px;
             border-bottom: 1px solid var(--accent-blue); box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-            z-index: 500;
+            z-index: 500; min-height: 42px;
         }
         .toolbar-logo { display: flex; align-items: center; margin-right: 10px; }
         .toolbar-logo img { height: 24px; margin-right: 6px; }
@@ -167,7 +161,6 @@
         }
         button:hover { background: var(--accent-blue); border-color: var(--accent-cyan); }
         button.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); }
-        button:disabled { opacity: 0.4; cursor: not-allowed; }
 
         .separator { width: 1px; height: 20px; background: var(--button-border); margin: 0 4px; }
 
@@ -260,7 +253,7 @@
         body.fullscreen-mode #fullscreen-controls { display: flex !important; }
 
         /* ================================================================ */
-        /* TOAST CONTAINER (Notification System) */
+        /* TOAST CONTAINER */
         /* ================================================================ */
         #sf-toast-container {
             position: fixed;
@@ -411,10 +404,7 @@
     <!-- VIEWPORT 3D -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <div class="viewport-container" id="viewport-3d">
-        <!-- El canvas 3D se crea dinámicamente por SmartFlowRenderer3D -->
-        <!-- El canvas de anotaciones se crea dinámicamente por SmartFlowAnnotations -->
-        
-        <!-- Panel de Propiedades (se superpone al viewport) -->
+        <!-- Panel de Propiedades (superpuesto al viewport) -->
         <div id="side-panel" class="property-panel hidden">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span style="color:var(--accent-cyan); font-weight:bold;">PROPIEDADES TÉCNICAS</span>
@@ -456,19 +446,15 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════ -->
-    <!-- SCRIPTS (Orden de dependencia) -->
+    <!-- SCRIPTS (Orden de dependencia estricto) -->
     <!-- ═══════════════════════════════════════════════════════════════ -->
     <script src="js/catalog.js"></script>
     <script src="js/core.js"></script>
     <script src="js/router.js"></script>
     <script src="js/commands.js"></script>
-    
-    <!-- Motor 3D + Anotaciones + Notificaciones -->
-    <script type="module" src="js/renderer3d.js"></script>
+    <script src="js/renderer3d.js"></script>
     <script src="js/annotationEngine.js"></script>
     <script src="js/notifications.js"></script>
-    
-    <!-- Orquestador Principal -->
     <script src="js/main.js"></script>
 </body>
 </html>
