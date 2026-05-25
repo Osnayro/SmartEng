@@ -4,15 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SmartEngp 3D | AcQuaBlue</title>
+    <title>SmartEngp | AcQuaBlue</title>
     
     <!-- Dependencias externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Three.js v0.157 - Carga clásica (estable, sin módulos ES) -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Three.js v0.128 - Carga clásica comprobada -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     <style>
         :root {
@@ -43,49 +43,35 @@
         }
 
         #splash-screen {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at center, #10172a 0%, #020617 100%);
-            z-index: 10000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            z-index: 10000; display: flex; justify-content: center; align-items: center;
             transition: opacity 0.8s ease, visibility 0.8s;
         }
         .splash-content { text-align: center; width: 350px; }
         .corporate-header { margin-bottom: 25px; }
         .company-name { font-size: 11px; letter-spacing: 3px; color: #fff; opacity: 0.6; text-transform: uppercase; display: block; }
         .powered-by { font-size: 8px; color: var(--accent-cyan); letter-spacing: 1px; text-transform: uppercase; }
-
         .hex-container {
-            width: 120px; height: 120px;
-            margin: 0 auto 30px;
+            width: 120px; height: 120px; margin: 0 auto 30px;
             border: 1px solid var(--accent-cyan);
             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
             display: flex; justify-content: center; align-items: center;
-            background: rgba(0, 242, 255, 0.05);
-            animation: hex-pulse 2.5s infinite ease-in-out;
+            background: rgba(0, 242, 255, 0.05); animation: hex-pulse 2.5s infinite ease-in-out;
         }
         .hex-container img { width: 70%; filter: drop-shadow(0 0 10px #00f2ff); }
-
         @keyframes hex-pulse {
             0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(0,242,255,0.1); }
             50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(0,242,255,0.3); }
         }
-
         .splash-title { font-size: 30px; letter-spacing: 8px; color: white; font-weight: 900; text-transform: uppercase; margin-bottom: 5px; }
         .splash-subtitle { color: var(--accent-cyan); letter-spacing: 4px; font-size: 10px; margin-bottom: 35px; opacity: 0.8; font-weight: bold; }
-
         .loading-bar-container { width: 200px; height: 1px; background: rgba(255,255,255,0.1); margin: 0 auto 15px; overflow: hidden; }
         .loading-bar-fill { width: 0%; height: 100%; background: var(--accent-cyan); animation: fill-bar 4.5s forwards cubic-bezier(0.19, 1, 0.22, 1); }
-
         .splash-status { font-family: monospace; font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 50px; height: 15px; }
-
         .author-footer { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
         .leader-by { font-size: 9px; color: #fff; opacity: 0.5; text-transform: uppercase; }
         .engineer-name { font-size: 13px; font-weight: bold; color: #fff; display: block; letter-spacing: 1.5px; margin-top: 4px; }
-
         @keyframes fill-bar { 0% { width: 0%; } 100% { width: 100%; } }
         .splash-hidden { opacity: 0; visibility: hidden; }
 
@@ -98,8 +84,7 @@
         .welcome-container {
             width: 600px; padding: 40px; background: rgba(15, 23, 42, 0.85);
             border: 1px solid var(--accent-cyan); border-radius: 16px;
-            backdrop-filter: blur(12px); box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-            text-align: center;
+            backdrop-filter: blur(12px); box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center;
         }
         .home-logo-wrapper { margin-bottom: 25px; }
         .home-logo-img { width: 130px; margin: 10px 0 25px; filter: drop-shadow(0 0 15px rgba(0,242,255,0.4)); }
@@ -149,7 +134,6 @@
         }
         button:hover { background: var(--accent-blue); border-color: var(--accent-cyan); }
         button.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); }
-
         .separator { width: 1px; height: 20px; background: var(--button-border); margin: 0 4px; }
 
         .dropdown { position: relative; display: inline-block; }
@@ -162,15 +146,27 @@
         .dropdown-content button { width: 100%; text-align: left; border: none; border-radius: 0; }
         .dropdown.open > .dropdown-content { display: block; }
 
-        .viewport-container {
-            flex: 1; background: #000; position: relative; overflow: hidden;
+        /* ═══════════════ CONTENEDOR PRINCIPAL (2D/3D) ═══════════════ */
+        .main-container {
+            flex: 1; position: relative; overflow: hidden; background: #000;
         }
-        .viewport-container canvas {
-            display: block; width: 100%; height: 100%;
+        #isoCanvas {
+            display: none; width: 100%; height: 100%; cursor: grab;
+            position: absolute; top: 0; left: 0; z-index: 1;
         }
+        #isoCanvas.active { display: block; }
+        #isoCanvas:active { cursor: grabbing; }
+        #three-container {
+            display: none; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; z-index: 2;
+        }
+        #three-container.active { display: block; }
+        #three-container canvas { width: 100% !important; height: 100% !important; }
         #annotation-layer {
-            pointer-events: none !important;
+            position: absolute; top: 0; left: 0;
+            pointer-events: none; z-index: 10; display: none;
         }
+        #annotation-layer.active { display: block; }
 
         #side-panel {
             position: absolute; top: 10px; right: 10px; width: 300px; max-width: 85vw; max-height: 65vh;
@@ -183,7 +179,6 @@
         #side-panel::-webkit-scrollbar-track { background: rgba(0,242,255,0.05); }
         #side-panel::-webkit-scrollbar-thumb { background: rgba(0,242,255,0.3); border-radius: 3px; }
         #panel-content { max-height: calc(65vh - 50px); overflow-y: auto; }
-        
         .prop-group { margin-bottom: 8px; }
         .prop-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; display: block; }
         .prop-value { font-size: 14px; color: #e2e8f0; font-weight: 600; }
@@ -195,8 +190,7 @@
             position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
             width: 90%; max-width: 550px; background: rgba(15, 23, 42, 0.97);
             border-radius: 12px; border: 1px solid var(--accent-cyan);
-            z-index: 1000; display: none; backdrop-filter: blur(10px);
-            padding: 10px;
+            z-index: 1000; display: none; backdrop-filter: blur(10px); padding: 10px;
         }
         .command-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--accent-cyan); }
         textarea {
@@ -222,23 +216,15 @@
         body.fullscreen-mode #side-panel,
         body.fullscreen-mode #commandPanel,
         body.fullscreen-mode .status-bar { display: none !important; }
-        body.fullscreen-mode .viewport-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        body.fullscreen-mode .main-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
         body.fullscreen-mode #fullscreen-controls { display: flex !important; }
 
         #sf-toast-container {
-            position: fixed;
-            z-index: 10000;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            bottom: 70px;
-            right: 20px;
+            position: fixed; z-index: 10000; pointer-events: none;
+            display: flex; flex-direction: column; gap: 8px;
+            bottom: 70px; right: 20px;
         }
-        .sf-toast {
-            pointer-events: auto;
-            animation: sf-slide-in 0.3s ease-out;
-        }
+        .sf-toast { pointer-events: auto; animation: sf-slide-in 0.3s ease-out; }
         @keyframes sf-slide-in {
             from { opacity: 0; transform: translateX(100px) scale(0.9); }
             to { opacity: 1; transform: translateX(0) scale(1); }
@@ -254,6 +240,7 @@
 </head>
 <body>
 
+    <!-- SPLASH SCREEN -->
     <div id="splash-screen">
         <div class="splash-content">
             <div class="corporate-header">
@@ -264,9 +251,9 @@
                 <img src="img/logo.PNG" alt="Logo" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">SmartEngp</h1>
-            <p class="splash-subtitle">INGENIERÍA INTELIGENTE 3D</p>
+            <p class="splash-subtitle">INGENIERÍA INTELIGENTE 2D/3D</p>
             <div class="loading-bar-container"><div class="loading-bar-fill"></div></div>
-            <div class="splash-status" id="splash-status">Inicializando motor 3D...</div>
+            <div class="splash-status" id="splash-status">Inicializando motores gráficos...</div>
             <div class="author-footer">
                 <span class="leader-by">Ingeniero Líder de Proyecto:</span>
                 <span class="engineer-name">Ing. Osnay Romero</span>
@@ -274,6 +261,7 @@
         </div>
     </div>
 
+    <!-- WELCOME PANEL -->
     <div id="welcome-panel">
         <div class="welcome-container">
             <div class="home-logo-wrapper">
@@ -290,6 +278,7 @@
         </div>
     </div>
 
+    <!-- PROJECT NAME MODAL -->
     <div id="project-name-modal">
         <div class="modal-content">
             <h3>Nuevo Proyecto</h3>
@@ -301,6 +290,7 @@
         </div>
     </div>
 
+    <!-- TOOLBAR -->
     <div class="toolbar" role="toolbar">
         <div class="toolbar-logo">
             <img src="img/logo.PNG" alt="Logo" style="height: 24px;" onerror="this.style.display='none'">
@@ -327,10 +317,20 @@
         
         <span class="separator"></span>
         
-        <button id="btnViewIso" title="Vista Isométrica">🔷 ISO</button>
+        <!-- Selector de motor 2D/3D -->
+        <select id="tres-de" style="background:var(--button-bg); color:white; border:1px solid var(--button-border); 
+                padding:5px 8px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:600;">
+            <option value="3d" selected>🔷 3D</option>
+            <option value="2d">⚫ 2D</option>
+        </select>
+        
+        <span class="separator"></span>
+        
+        <!-- Botones de vista (llaman a la función correcta según motor activo) -->
+        <button id="btnViewIso" title="Vista Isométrica / Centrar">🔷 ISO</button>
         <button id="btnViewTop" title="Vista Planta">🔽 TOP</button>
         <button id="btnViewFront" title="Vista Frontal">▶️ FRONT</button>
-        <button id="btnZoomFit" title="Zoom Extender">🔍 FIT</button>
+        <button id="btnZoomFit" title="Auto Center / Zoom Fit">🔍 FIT</button>
         
         <span class="separator"></span>
         
@@ -351,6 +351,7 @@
                 <button id="btnAddPump">⚙️ Bomba Centrífuga</button>
                 <button id="btnAddExchanger">🌡️ Intercambiador</button>
                 <button id="btnAddVessel">🛢️ Tanque Horizontal</button>
+                <button id="btnAddPlatform">🏗️ Plataforma</button>
             </div>
         </div>
         
@@ -359,18 +360,23 @@
         <button id="btnAudit" title="Auditar Modelo">🔍 AUDIT</button>
     </div>
 
-    <div class="viewport-container" id="viewport-3d">
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="main-container">
+        <canvas id="isoCanvas"></canvas>
+        <div id="three-container" class="active"></div>
+        
         <div id="side-panel" class="property-panel hidden">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span style="color:var(--accent-cyan); font-weight:bold;">PROPIEDADES TÉCNICAS</span>
                 <button id="btnClosePanel" style="background:none;border:none;color:white;font-size:18px;padding:0;width:24px;cursor:pointer;">×</button>
             </div>
             <div id="panel-content">
-                <p style="color:#64748b; font-size:12px;">Seleccione un elemento en el visor 3D</p>
+                <p style="color:#64748b; font-size:12px;">Seleccione un elemento en el visor</p>
             </div>
         </div>
     </div>
 
+    <!-- CONSOLA DE COMANDOS -->
     <div id="commandPanel" class="command-panel">
         <div class="command-header">
             <strong>🤖 Consola de Comandos IA</strong>
@@ -384,20 +390,31 @@
         </div>
     </div>
 
-    <div class="status-bar" id="statusMsg">SISTEMA LISTO | SmartEngp 3D</div>
+    <!-- STATUS BAR -->
+    <div class="status-bar" id="statusMsg">SISTEMA LISTO | SmartEngp 2D/3D</div>
 
+    <!-- FULLSCREEN CONTROLS -->
     <div id="fullscreen-controls">
         <button id="btnFullscreenCenter" style="padding:12px 20px; border-radius:30px; background:var(--accent-cyan); color:#000; font-weight:bold; border:none;">🔄 Centrar</button>
         <button id="btnFullscreenExit" style="padding:12px 20px; border-radius:30px; background:#ef4444; color:white; font-weight:bold; border:none;">✕ Salir Fullscreen</button>
     </div>
 
+    <!-- SCRIPTS -->
     <script src="js/catalog.js"></script>
     <script src="js/core.js"></script>
     <script src="js/router.js"></script>
     <script src="js/commands.js"></script>
+    <script src="js/renderer.js"></script>
     <script src="js/renderer3d.js"></script>
     <script src="js/annotationEngine.js"></script>
     <script src="js/notifications.js"></script>
     <script src="js/main.js"></script>
+    
+    <script>
+        console.log('✅ THREE.js:', typeof THREE !== 'undefined' ? 'v' + THREE.REVISION : '❌ NO CARGADO');
+        console.log('✅ SmartFlowCore:', typeof SmartFlowCore !== 'undefined' ? 'OK' : '❌');
+        console.log('✅ SmartFlowRenderer (2D):', typeof SmartFlowRenderer !== 'undefined' ? 'OK' : '❌');
+        console.log('✅ SmartFlowRenderer3D:', typeof SmartFlowRenderer3D !== 'undefined' ? 'OK' : '❌');
+    </script>
 </body>
 </html>
