@@ -1,3 +1,10 @@
+
+// ============================================================
+// SMARTFLOW COMMANDS v2.0 - Intérprete de Comandos Unificado
+// Archivo: js/commands.js
+// Compatible con SmartFlowCore v5.5 + SmartFlowRouter
+// ============================================================
+
 const SmartFlowCommands = (function() {
     
     let _core = null;
@@ -7,29 +14,55 @@ const SmartFlowCommands = (function() {
     let _renderUI = () => {};
     let _voiceFn = null;
 
+    // ================================================================
+    //  DICCIONARIO DE INTENCIONES MULTILINGÜE (ORIGINAL + EXTENDIDO)
+    // ================================================================
     const IntentDictionary = {
+        // Creación
         'crear': 'create', 'nuevo': 'create', 'añadir': 'create', 'instalar': 'create', 'pon': 'create', 'crea': 'create',
         'create': 'create', 'add': 'create',
+        // Conexión
         'conectar': 'connect', 'unir': 'connect', 'enlazar': 'connect', 'link': 'connect', 'vincula': 'connect', 'junta': 'connect', 'une': 'connect',
         'connect': 'connect',
+        // Ruta
         'ruta': 'route', 'route': 'route',
+        // Eliminación
         'eliminar': 'delete', 'borrar': 'delete', 'quitar': 'delete', 'suprimir': 'delete', 'quita': 'delete', 'elimina': 'delete', 'limpiar': 'delete',
         'delete': 'delete', 'remove': 'delete',
+        // Edición
         'editar': 'edit', 'modificar': 'edit', 'cambiar': 'edit', 'ajustar': 'edit', 'cambia': 'edit',
-        'edit': 'edit', 'set': 'edit', 'update': 'edit', 'mover': 'edit', 'move': 'edit',
+        'edit': 'edit', 'set': 'edit', 'update': 'edit', 'mover': 'move', 'move': 'move',
         'establecer': 'edit', 'spec': 'edit', 'diametro': 'edit',
+        // Listado
         'listar': 'list', 'lista': 'list', 'list': 'list', 'inventory': 'list', 'showall': 'list',
+        // Auditoría
         'auditar': 'audit', 'revisar': 'audit', 'verificar': 'audit', 'validar': 'audit', 'audita': 'audit', 'status': 'audit',
         'audit': 'audit', 'check': 'audit',
+        // BOM
         'bom': 'bom', 'mto': 'bom', 'generar': 'bom', 'generate': 'bom',
+        // Ayuda
         'ayuda': 'help', 'help': 'help', 'comandos': 'help', '?': 'help', 'h': 'help',
+        // Historial
         'deshacer': 'undo', 'undo': 'undo',
         'rehacer': 'redo', 'redo': 'redo',
+        // Info
         'info': 'info', 'información': 'info', 'informacion': 'info', 'detalles': 'info', 'ver': 'info', 'describe': 'info',
+        // Tap / Derivación
         'tap': 'tap', 'derivar': 'tap',
+        // Split
         'split': 'split', 'dividir': 'split', 'romper': 'split',
+        // Punto / Coordenadas
         'punto': 'point', 'coordenadas': 'point', 'coordenada': 'point', 'posicion': 'point', 'ubicacion': 'point',
-        'nodos': 'nodes', 'nodo': 'nodes', 'nodes': 'nodes'
+        // Nodos
+        'nodos': 'nodes', 'nodo': 'nodes', 'nodes': 'nodes',
+        // NUEVOS COMANDOS v2.0
+        'rotar': 'rotate', 'girar': 'rotate', 'rotate': 'rotate',
+        'duplicar': 'duplicate', 'copiar': 'duplicate', 'duplicate': 'duplicate', 'copy': 'duplicate',
+        'alinear': 'align', 'align': 'align',
+        'medir': 'measure', 'distancia': 'measure', 'measure': 'measure', 'distance': 'measure',
+        'macro': 'macro', 'script': 'macro',
+        'exportar': 'export', 'export': 'export',
+        'vista': 'view', 'view': 'view', 'zoom': 'view', 'camara': 'view', 'cámara': 'view'
     };
 
     function getIntent(word) {
@@ -45,6 +78,9 @@ const SmartFlowCommands = (function() {
         return cmd;
     }
 
+    // ================================================================
+    //  UTILIDADES
+    // ================================================================
     function extractCoords(str) {
         const m = str.match(/\((-?\d+\.?\d*)\s*,?\s*(-?\d+\.?\d*)\s*,?\s*(-?\d+\.?\d*)\)/);
         return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]), z: parseFloat(m[3]) } : null;
@@ -127,13 +163,38 @@ const SmartFlowCommands = (function() {
         if (typeof _voiceFn === 'function') { _voiceFn(message); }
     }
 
-    // Unificación centralizada de inyección delegando estrictamente al módulo Router
+    function saveStateBeforeMutation() {
+        if (_core && _core._saveState) {
+            _core._saveState();
+        }
+    }
+
+    function getPortPosition(tag, portId) {
+        const obj = _core ? _core.findObjectByTag(tag) : null;
+        if (!obj) return { x: 0, y: 0, z: 0 };
+        const base = getBasePosition(obj);
+        const puerto = obj.puertos?.find(p => p.id === portId);
+        if (puerto) {
+            return {
+                x: base.x + (puerto.relX || 0),
+                y: base.y + (puerto.relY || 0),
+                z: base.z + (puerto.relZ || 0)
+            };
+        }
+        return base;
+    }
+
+    // Unificación centralizada de inyección delegando al módulo Router
     function runFittingInjection(line, fromObj, fromPortId, toObj, toPortId, diameter, material) {
         if (typeof SmartFlowRouter !== 'undefined' && typeof SmartFlowRouter.ensureFittings === 'function') {
             return SmartFlowRouter.ensureFittings(line, fromObj, fromPortId, toObj, toPortId, diameter, material);
         }
         return { added: [], message: ' | ⚠️ Router no disponible para inyección' };
     }
+
+    // ================================================================
+    //  COMANDOS ORIGINALES (MANTENIDOS ÍNTEGROS)
+    // ================================================================
 
     function parsePoint(cmd) {
         const parts = cmd.trim().split(/\s+/);
@@ -362,7 +423,6 @@ const SmartFlowCommands = (function() {
         
         _core.addLine(nuevaLinea);
         
-        // Sincronización post-inserción en Core
         const db = _core.getDb();
         const lineaRegistrada = db.lines.find(l => l.tag === tag) || nuevaLinea;
         const fittingInfo = runFittingInjection(lineaRegistrada, null, null, null, null, diameter, material);
@@ -499,7 +559,6 @@ const SmartFlowCommands = (function() {
             waypoints: [], _cachedPoints: [startPos, endPos], components: []
         };
 
-        // --- CORRECCIÓN EN CONNECT: PERSISTENCIA INVERTIDA ---
         _core.addLine(nuevaLinea);
         
         const lineaRegistrada = _core.getDb().lines.find(l => l.tag === newTag) || nuevaLinea;
@@ -540,6 +599,7 @@ const SmartFlowCommands = (function() {
         const parts = cmd.split(/\s+/);
         if (parts[0] !== 'delete' && parts[0] !== 'eliminar') return false;
         const type = parts[1], tag = parts[2];
+        saveStateBeforeMutation();
         if (type === 'equipment' || type === 'equipo') {
             const db = _core.getDb();
             const index = db.equipos.findIndex(e => e.tag === tag);
@@ -653,13 +713,38 @@ const SmartFlowCommands = (function() {
 
     function parseHelp(cmd) {
         const lower = cmd.toLowerCase(); if (lower !== 'help' && lower !== 'ayuda') return false;
-        let ayuda = "═══════════════════════════════════════════════════════════\n              SMARTFLOW PRO - COMANDOS DISPONIBLES\n═══════════════════════════════════════════════════════════\n\n";
-        ayuda += "CREACIÓN:\n  create/crear [tipo] [tag] at (x,y,z)\n  create line [tag] route/ruta (x1,y1,z1)...\n\n";
-        ayuda += "CONEXIÓN:\n  connect/conectar [origen] [puerto] to/a [destino] [puerto o 0-1 o 0.0-1.0]\n\n";
-        ayuda += "COORDENADAS:\n  coordenadas de [TAG]\n  coordenadas de [TAG] puerto [ID]\n  coordenadas de [TAG] punto [N]\n  coordenadas [LINEA]@[0.0-1.0]\n  nodos [TAG]\n\n";
-        ayuda += "INFO:\n  info line/equipment/component [TAG]\n  listar equipos | listar lineas\n\n";
-        ayuda += "EDITAR:\n  edit line [TAG] add component [TIPO] at [0-1]\n\n";
-        ayuda += "OTROS: bom | audit | tap | split | undo | redo | help\n═══════════════════════════════════════════════════════════\n";
+        let ayuda = "═══════════════════════════════════════════════════════════\n";
+        ayuda += "              SMARTFLOW PRO v2.0 - COMANDOS\n";
+        ayuda += "═══════════════════════════════════════════════════════════\n\n";
+        ayuda += "🏗️ CREACIÓN:\n";
+        ayuda += "  create [tipo] [tag] at (x,y,z) [diam X] [height X] [material X]\n";
+        ayuda += "  create line [tag] route (x,y,z) (x,y,z)... [diameter X] [spec X]\n\n";
+        ayuda += "🔗 CONEXIÓN:\n";
+        ayuda += "  connect [origen] [puerto] to [destino] [puerto|0-1|0.0-1.0]\n";
+        ayuda += "  route from [origen] [puerto] to [destino] [puerto]\n";
+        ayuda += "  tap [origen] [puerto] to [linea] [0.0-1.0]\n\n";
+        ayuda += "✏️ EDICIÓN:\n";
+        ayuda += "  move [tag] to (x,y,z)  |  move [tag] by (dx,dy,dz)\n";
+        ayuda += "  rotate [tag] [angulo] [around X|Y|Z]\n";
+        ayuda += "  duplicate [tag] as [nuevo_tag] [offset (dx,dy,dz)]\n";
+        ayuda += "  align [tag1] [tag2] ... on X|Y|Z\n";
+        ayuda += "  edit line [tag] add component [tipo] at [0-1]\n";
+        ayuda += "  split [linea] at (x,y,z) [type TEE_EQUAL]\n";
+        ayuda += "  delete equipment|line [tag]\n\n";
+        ayuda += "📊 CONSULTAS:\n";
+        ayuda += "  info line|equipment|component [tag]\n";
+        ayuda += "  point de [tag] [puerto|@0.5|punto N]\n";
+        ayuda += "  nodes [tag]\n";
+        ayuda += "  measure [tag1] to [tag2]  |  measure between [tag1] and [tag2]\n";
+        ayuda += "  list equipos | lineas | componentes | especificaciones\n\n";
+        ayuda += "🎯 VISTA:\n";
+        ayuda += "  view top|front|iso|extents  |  view [tag] (centrar)\n\n";
+        ayuda += "💾 MACROS / EXPORT:\n";
+        ayuda += "  macro save [nombre]  |  macro run [nombre]\n";
+        ayuda += "  macro list  |  macro delete [nombre]\n";
+        ayuda += "  export json  |  export csv\n\n";
+        ayuda += "🔄 undo | redo | bom | audit | help\n";
+        ayuda += "═══════════════════════════════════════════════════════════\n";
         notifyWithVoice(ayuda, false); return true;
     }
 
@@ -701,7 +786,6 @@ const SmartFlowCommands = (function() {
             waypoints: [], _cachedPoints: [startPos, puntoConexion], components: []
         };
 
-        // --- CORRECCIÓN EN TAP: PERSISTENCIA POST-INSERCIÓN ---
         _core.addLine(nuevaLinea);
         
         const lineaRegistrada = _core.getDb().lines.find(l => l.tag === newTag) || nuevaLinea;
@@ -733,6 +817,448 @@ const SmartFlowCommands = (function() {
         }
         return true;
     }
+
+    // ================================================================
+    //  NUEVOS COMANDOS v2.0
+    // ================================================================
+
+    // ─── MOVE (comando independiente, extiende el edit move) ───
+    function parseMoveCommand(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'move' && parts[0] !== 'mover') return false;
+        
+        const tag = parts[1];
+        if (!tag) { notifyWithVoice("Uso: move TAG to (x,y,z) | move TAG by (dx,dy,dz)", true); return true; }
+        
+        if (!_core) { notifyWithVoice("Core no inicializado", true); return true; }
+        const obj = _core.findObjectByTag(tag);
+        if (!obj) { notifyWithVoice(`${tag} no encontrado`, true); return true; }
+        
+        const mode = parts[2]?.toLowerCase();
+        let coordStr = '';
+        for (let i = 3; i < parts.length; i++) {
+            coordStr += parts[i];
+            if (parts[i].includes(')')) break;
+        }
+        const m = coordStr.match(/\((-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*)\)/);
+        if (!m) { notifyWithVoice("Formato: (x,y,z)", true); return true; }
+        
+        const vx = parseFloat(m[1]), vy = parseFloat(m[2]), vz = parseFloat(m[3]);
+        
+        saveStateBeforeMutation();
+        
+        if (obj.posX !== undefined) {
+            if (mode === 'by' || mode === 'por') {
+                _core.updateEquipment(tag, {
+                    posX: (obj.posX || 0) + vx,
+                    posY: (obj.posY || 0) + vy,
+                    posZ: (obj.posZ || 0) + vz
+                });
+            } else {
+                _core.updateEquipment(tag, { posX: vx, posY: vy, posZ: vz });
+            }
+            notifyWithVoice(`✅ ${tag} movido a (${_core.findObjectByTag(tag).posX}, ${_core.findObjectByTag(tag).posY}, ${_core.findObjectByTag(tag).posZ})`, false);
+        } else {
+            const pts = getPoints(obj);
+            if (pts.length > 0) {
+                let newPts;
+                if (mode === 'by' || mode === 'por') {
+                    newPts = pts.map(p => ({ x: p.x + vx, y: p.y + vy, z: p.z + vz }));
+                } else {
+                    const base = pts[0];
+                    const dx = vx - base.x, dy = vy - base.y, dz = vz - base.z;
+                    newPts = pts.map(p => ({ x: p.x + dx, y: p.y + dy, z: p.z + dz }));
+                }
+                _core.updateLine(tag, { _cachedPoints: newPts });
+                notifyWithVoice(`✅ ${tag} desplazado`, false);
+            }
+        }
+        return true;
+    }
+
+    // ─── ROTATE ──────────────────────────────────────
+    function parseRotate(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'rotate' && parts[0] !== 'rotar' && parts[0] !== 'girar') return false;
+        
+        const tag = parts[1];
+        if (!tag) { notifyWithVoice("Uso: rotate TAG [angulo] [around X|Y|Z]", true); return true; }
+        
+        let angle = 0;
+        if (parts[2] === 'by') {
+            angle = parseFloat(parts[3]) || 0;
+        } else {
+            angle = parseFloat(parts[2]) || 0;
+        }
+        
+        let axis = 'Y';
+        const aroundIdx = parts.indexOf('around') !== -1 ? parts.indexOf('around') : 
+                          parts.indexOf('eje');
+        if (aroundIdx !== -1 && aroundIdx + 1 < parts.length) {
+            axis = parts[aroundIdx + 1].toUpperCase();
+        }
+        
+        if (!_core) { notifyWithVoice("Core no inicializado", true); return true; }
+        const obj = _core.findObjectByTag(tag);
+        if (!obj) { notifyWithVoice(`${tag} no encontrado`, true); return true; }
+        
+        saveStateBeforeMutation();
+        
+        if (obj.posX !== undefined) {
+            const currentRotation = obj.rotation || 0;
+            _core.updateEquipment(tag, { rotation: currentRotation + angle });
+            notifyWithVoice(`✅ ${tag} rotado ${angle}° (total: ${currentRotation + angle}°)`, false);
+        } else {
+            const pts = getPoints(obj);
+            if (pts.length > 0) {
+                const rad = angle * Math.PI / 180;
+                const cos = Math.cos(rad), sin = Math.sin(rad);
+                
+                // Encontrar centroide para rotar alrededor
+                let cx = 0, cy = 0, cz = 0;
+                pts.forEach(p => { cx += p.x; cy += p.y; cz += p.z; });
+                cx /= pts.length; cy /= pts.length; cz /= pts.length;
+                
+                const newPts = pts.map(p => {
+                    const rx = p.x - cx, ry = p.y - cy, rz = p.z - cz;
+                    if (axis === 'Y') {
+                        return { x: cx + rx * cos - rz * sin, y: p.y, z: cz + rx * sin + rz * cos };
+                    } else if (axis === 'Z') {
+                        return { x: cx + rx * cos - ry * sin, y: cy + rx * sin + ry * cos, z: p.z };
+                    } else if (axis === 'X') {
+                        return { x: p.x, y: cy + ry * cos - rz * sin, z: cz + ry * sin + rz * cos };
+                    }
+                    return p;
+                });
+                _core.updateLine(tag, { _cachedPoints: newPts });
+                notifyWithVoice(`✅ ${tag} rotado ${angle}° alrededor del eje ${axis}`, false);
+            } else {
+                notifyWithVoice(`⚠️ ${tag} no tiene geometría para rotar`, true);
+            }
+        }
+        return true;
+    }
+
+    // ─── DUPLICATE ───────────────────────────────────
+    function parseDuplicate(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'duplicate' && parts[0] !== 'duplicar' && 
+            parts[0] !== 'copy' && parts[0] !== 'copiar') return false;
+        
+        const tag = parts[1];
+        if (!tag) { notifyWithVoice("Uso: duplicate TAG as NUEVO_TAG [offset (dx,dy,dz)]", true); return true; }
+        
+        if (!_core) { notifyWithVoice("Core no inicializado", true); return true; }
+        const original = _core.findObjectByTag(tag);
+        if (!original) { notifyWithVoice(`${tag} no encontrado`, true); return true; }
+        
+        let newTag = null;
+        const asIdx = parts.indexOf('as') !== -1 ? parts.indexOf('as') : parts.indexOf('como');
+        if (asIdx !== -1 && asIdx + 1 < parts.length) {
+            newTag = parts[asIdx + 1];
+        } else {
+            newTag = tag + '-COPY';
+        }
+        
+        let offsetX = 2000, offsetY = 0, offsetZ = 0;
+        const offsetIdx = parts.indexOf('offset') !== -1 ? parts.indexOf('offset') : 
+                          parts.indexOf('desplazar');
+        if (offsetIdx !== -1) {
+            const coordStr = parts.slice(offsetIdx + 1).join('');
+            const m = coordStr.match(/\((-?\d+\.?\d*),(-?\d+\.?\d*),(-?\d+\.?\d*)\)/);
+            if (m) {
+                offsetX = parseFloat(m[1]);
+                offsetY = parseFloat(m[2]);
+                offsetZ = parseFloat(m[3]);
+            }
+        }
+        
+        const isEquipment = original.posX !== undefined || (original.pos && original.pos.x !== undefined);
+        
+        saveStateBeforeMutation();
+        
+        if (isEquipment) {
+            const clone = JSON.parse(JSON.stringify(original));
+            clone.tag = newTag;
+            clone.posX = (clone.posX || 0) + offsetX;
+            clone.posY = (clone.posY || 0) + offsetY;
+            clone.posZ = (clone.posZ || 0) + offsetZ;
+            
+            const success = _core.addEquipment(clone);
+            if (success) {
+                notifyWithVoice(`✅ Equipo duplicado: ${tag} → ${newTag} (offset: ${offsetX},${offsetY},${offsetZ})`, false);
+                if (_core.setSelected) _core.setSelected({ type: 'equipment', obj: clone });
+            }
+        } else {
+            const clone = JSON.parse(JSON.stringify(original));
+            clone.tag = newTag;
+            const pts = getPoints(original);
+            if (pts.length > 0) {
+                clone._cachedPoints = pts.map(p => ({
+                    x: p.x + offsetX,
+                    y: p.y + offsetY,
+                    z: p.z + offsetZ
+                }));
+            }
+            
+            const success = _core.addLine(clone);
+            if (success) {
+                notifyWithVoice(`✅ Línea duplicada: ${tag} → ${newTag} (offset: ${offsetX},${offsetY},${offsetZ})`, false);
+                if (_core.setSelected) _core.setSelected({ type: 'line', obj: clone });
+            }
+        }
+        return true;
+    }
+
+    // ─── ALIGN ───────────────────────────────────────
+    function parseAlign(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'align' && parts[0] !== 'alinear') return false;
+        
+        const tags = [];
+        let axis = 'Y';
+        let i = 1;
+        while (i < parts.length && parts[i] !== 'on' && parts[i] !== 'en') {
+            tags.push(parts[i]);
+            i++;
+        }
+        if (i < parts.length && (parts[i] === 'on' || parts[i] === 'en')) {
+            axis = parts[i + 1]?.toUpperCase() || 'Y';
+        }
+        
+        if (tags.length < 2) { notifyWithVoice("Uso: align TAG1 TAG2 [TAG3...] on X|Y|Z", true); return true; }
+        if (!_core) { notifyWithVoice("Core no inicializado", true); return true; }
+        
+        const refObj = _core.findObjectByTag(tags[0]);
+        if (!refObj || refObj.posX === undefined) {
+            notifyWithVoice(`${tags[0]} no es un equipo válido para alinear`, true);
+            return true;
+        }
+        
+        const refValue = axis === 'X' ? refObj.posX : 
+                         axis === 'Y' ? refObj.posY : refObj.posZ;
+        
+        saveStateBeforeMutation();
+        
+        let count = 0;
+        for (let j = 1; j < tags.length; j++) {
+            const obj = _core.findObjectByTag(tags[j]);
+            if (!obj || obj.posX === undefined) continue;
+            
+            const update = {};
+            if (axis === 'X') update.posX = refValue;
+            else if (axis === 'Y') update.posY = refValue;
+            else update.posZ = refValue;
+            
+            _core.updateEquipment(tags[j], update);
+            count++;
+        }
+        
+        notifyWithVoice(`✅ ${count} equipos alineados al eje ${axis} (referencia: ${tags[0]})`, false);
+        return true;
+    }
+
+    // ─── MEASURE ─────────────────────────────────────
+    function parseMeasure(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'measure' && parts[0] !== 'medir' && 
+            parts[0] !== 'distancia' && parts[0] !== 'distance') return false;
+        
+        if (!_core) { notifyWithVoice("Core no inicializado", true); return true; }
+        
+        let tag1, tag2, port1 = null, port2 = null;
+        
+        if (parts[1] === 'between' || parts[1] === 'entre') {
+            tag1 = parts[2];
+            const andIdx = parts.indexOf('and') !== -1 ? parts.indexOf('and') : parts.indexOf('y');
+            if (andIdx === -1) { notifyWithVoice("Uso: measure between TAG1 and TAG2", true); return true; }
+            tag2 = parts[andIdx + 1];
+        } else {
+            tag1 = parts[1];
+            const toIdx = parts.indexOf('to') !== -1 ? parts.indexOf('to') : parts.indexOf('a');
+            if (toIdx === -1) { notifyWithVoice("Uso: measure TAG1 to TAG2", true); return true; }
+            tag2 = parts[toIdx + 1];
+        }
+        
+        if (tag1?.includes(':')) {
+            [tag1, port1] = tag1.split(':');
+        }
+        if (tag2?.includes(':')) {
+            [tag2, port2] = tag2.split(':');
+        }
+        
+        const obj1 = _core.findObjectByTag(tag1);
+        const obj2 = _core.findObjectByTag(tag2);
+        if (!obj1 || !obj2) { notifyWithVoice("Objeto(s) no encontrado(s)", true); return true; }
+        
+        const pos1 = port1 ? getPortPosition(tag1, port1) : getBasePosition(obj1);
+        const pos2 = port2 ? getPortPosition(tag2, port2) : getBasePosition(obj2);
+        
+        const dx = pos2.x - pos1.x;
+        const dy = pos2.y - pos1.y;
+        const dz = pos2.z - pos1.z;
+        const dist = Math.hypot(dx, dy, dz);
+        const distH = Math.hypot(dx, dz);
+        
+        let msg = `📏 Distancia ${tag1}`;
+        if (port1) msg += `:${port1}`;
+        msg += ` → ${tag2}`;
+        if (port2) msg += `:${port2}`;
+        msg += `:\n`;
+        msg += `  3D: ${(dist/1000).toFixed(3)} m (${dist.toFixed(0)} mm)\n`;
+        msg += `  Horizontal: ${(distH/1000).toFixed(3)} m\n`;
+        msg += `  ΔX: ${dx.toFixed(0)} mm | ΔY: ${dy.toFixed(0)} mm | ΔZ: ${dz.toFixed(0)} mm`;
+        
+        notifyWithVoice(msg, false);
+        return true;
+    }
+
+    // ─── MACRO ───────────────────────────────────────
+    let _macros = new Map();
+    window._commandHistory = window._commandHistory || [];
+
+    function recordCommand(cmd) {
+        if (cmd && !cmd.startsWith('//') && cmd.trim()) {
+            window._commandHistory.push(cmd.trim());
+            if (window._commandHistory.length > 200) {
+                window._commandHistory.shift();
+            }
+        }
+    }
+
+    function parseMacro(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'macro' && parts[0] !== 'script') return false;
+        
+        const action = parts[1]?.toLowerCase();
+        
+        if (action === 'save' || action === 'guardar') {
+            const name = parts[2];
+            if (!name) { notifyWithVoice("Uso: macro save NOMBRE", true); return true; }
+            const history = [...window._commandHistory];
+            _macros.set(name, history);
+            notifyWithVoice(`💾 Macro "${name}" guardada (${history.length} comandos)`, false);
+            return true;
+        }
+        
+        if (action === 'run' || action === 'ejecutar') {
+            const name = parts[2];
+            if (!name || !_macros.has(name)) {
+                notifyWithVoice(`Macro "${name}" no encontrada. Use macro list.`, true);
+                return true;
+            }
+            const commands = _macros.get(name);
+            let count = 0;
+            commands.forEach(c => {
+                if (executeCommand(c)) count++;
+            });
+            notifyWithVoice(`▶️ Macro "${name}": ${count}/${commands.length} comandos ejecutados`, false);
+            return true;
+        }
+        
+        if (action === 'list' || action === 'lista') {
+            if (_macros.size === 0) {
+                notifyWithVoice("No hay macros guardadas.", false);
+            } else {
+                let msg = "📋 Macros guardadas:\n";
+                for (const [name, cmds] of _macros) {
+                    msg += `  • ${name} (${cmds.length} comandos)\n`;
+                }
+                notifyWithVoice(msg, false);
+            }
+            return true;
+        }
+        
+        if (action === 'delete' || action === 'eliminar') {
+            const name = parts[2];
+            if (_macros.delete(name)) {
+                notifyWithVoice(`🗑️ Macro "${name}" eliminada`, false);
+            } else {
+                notifyWithVoice(`Macro "${name}" no encontrada`, true);
+            }
+            return true;
+        }
+        
+        notifyWithVoice("Uso: macro save|run|list|delete [nombre]", true);
+        return true;
+    }
+
+    // ─── EXPORT ──────────────────────────────────────
+    function parseExportCommand(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'export' && parts[0] !== 'exportar') return false;
+        
+        const format = parts[1]?.toLowerCase();
+        
+        if (format === 'json') {
+            if (_core && _core.exportProject) {
+                const json = _core.exportProject();
+                const blob = new Blob([json], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `SmartFlow_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                notifyWithVoice("📁 Proyecto exportado como JSON", false);
+            }
+            return true;
+        }
+        
+        if (format === 'csv') {
+            generateBOM();
+            return true;
+        }
+        
+        notifyWithVoice("Formatos: export json | export csv", true);
+        return true;
+    }
+
+    // ─── VIEW ────────────────────────────────────────
+    function parseViewCommand(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        if (parts[0] !== 'view' && parts[0] !== 'vista' && 
+            parts[0] !== 'zoom' && parts[0] !== 'camara' && parts[0] !== 'cámara') return false;
+        
+        const sub = parts[1]?.toLowerCase();
+        
+        if (sub === 'top' || sub === 'planta') {
+            if (_renderer && _renderer.setView) _renderer.setView('top');
+            notifyWithVoice("🔭 Vista: Planta (TOP)", false);
+            return true;
+        }
+        if (sub === 'front' || sub === 'frente') {
+            if (_renderer && _renderer.setView) _renderer.setView('front');
+            notifyWithVoice("🔭 Vista: Frontal", false);
+            return true;
+        }
+        if (sub === 'iso' || sub === 'isometrico' || sub === 'isométrico') {
+            if (_renderer && _renderer.setView) _renderer.setView('iso');
+            notifyWithVoice("🔭 Vista: Isométrica", false);
+            return true;
+        }
+        if (sub === 'extents' || sub === 'todo' || sub === 'fit' || sub === 'extender') {
+            if (_renderer && _renderer.zoomToFit) _renderer.zoomToFit();
+            notifyWithVoice("🔭 Zoom: Extender", false);
+            return true;
+        }
+        
+        // view TAG → centrar
+        if (sub && !['top','front','iso','extents','fit','todo','extender','reset'].includes(sub)) {
+            const obj = _core?.findObjectByTag(sub);
+            if (obj) {
+                const pos = getBasePosition(obj);
+                if (_renderer && _renderer.focusOn) _renderer.focusOn(pos);
+                notifyWithVoice(`🔭 Centrando en ${sub}`, false);
+                return true;
+            }
+        }
+        
+        notifyWithVoice("Vistas: top | front | iso | extents | [TAG]", true);
+        return true;
+    }
+
+    // ================================================================
+    //  PCF IMPORT (MANTENIDO ÍNTEGRO)
+    // ================================================================
 
     const skeyToInternal = {
         'TANK': { type: 'equipment', internal: 'tanque_v' },
@@ -808,7 +1334,6 @@ const SmartFlowCommands = (function() {
                 
                 _core.addLine(currentLine);
                 
-                // Forzar inyección automática al importar desde PCF
                 const db = _core.getDb();
                 const lReg = db.lines.find(l => l.tag === currentLine.tag) || currentLine;
                 runFittingInjection(lReg, null, null, null, null, lReg.diameter || 4, lReg.material || 'PPR');
@@ -879,27 +1404,44 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  EJECUCIÓN PRINCIPAL (ORDEN DE PRIORIDAD OPTIMIZADO)
+    // ================================================================
+
     function executeCommand(cmd) {
         if (!cmd || cmd.startsWith('//')) return false;
         const normalized = normalizeCommand(cmd);
         const trimmed = normalized.trim();
-        if (parseCreateLine(trimmed)) return true;
-        if (parseCreate(trimmed)) return true;
-        if (parseConnect(trimmed)) return true;
-        if (parseRoute(trimmed)) return true;
-        if (parseDelete(trimmed)) return true;
-        if (parseEditCommand(trimmed)) return true;
-        if (parseList(trimmed)) return true;
-        if (parseBOM(trimmed)) return true;
-        if (parseAudit(trimmed)) return true;
-        if (parseHelp(trimmed)) return true;
-        if (parseInfo(trimmed)) return true;
-        if (parseTap(trimmed)) return true;
-        if (parseSplit(trimmed)) return true;
-        if (parsePoint(trimmed)) return true;
-        if (parseNodes(trimmed)) return true;
-        if (trimmed === 'undo' || trimmed === 'deshacer') { if (_core) _core.undo(); return true; }
-        if (trimmed === 'redo' || trimmed === 'rehacer') { if (_core) _core.redo(); return true; }
+        
+        // Comandos de una palabra
+        if (trimmed === 'undo' || trimmed === 'deshacer') { if (_core) _core.undo(); recordCommand(cmd); return true; }
+        if (trimmed === 'redo' || trimmed === 'rehacer') { if (_core) _core.redo(); recordCommand(cmd); return true; }
+        
+        // Parseo por tipo (orden de más específico a más general)
+        if (parseCreateLine(trimmed)) { recordCommand(cmd); return true; }
+        if (parseCreate(trimmed)) { recordCommand(cmd); return true; }
+        if (parseConnect(trimmed)) { recordCommand(cmd); return true; }
+        if (parseRoute(trimmed)) { recordCommand(cmd); return true; }
+        if (parseTap(trimmed)) { recordCommand(cmd); return true; }
+        if (parseSplit(trimmed)) { recordCommand(cmd); return true; }
+        if (parseMoveCommand(trimmed)) { recordCommand(cmd); return true; }
+        if (parseRotate(trimmed)) { recordCommand(cmd); return true; }
+        if (parseDuplicate(trimmed)) { recordCommand(cmd); return true; }
+        if (parseAlign(trimmed)) { recordCommand(cmd); return true; }
+        if (parseDelete(trimmed)) { recordCommand(cmd); return true; }
+        if (parseEditCommand(trimmed)) { recordCommand(cmd); return true; }
+        if (parseMeasure(trimmed)) { recordCommand(cmd); return true; }
+        if (parsePoint(trimmed)) { recordCommand(cmd); return true; }
+        if (parseNodes(trimmed)) { recordCommand(cmd); return true; }
+        if (parseInfo(trimmed)) { recordCommand(cmd); return true; }
+        if (parseList(trimmed)) { recordCommand(cmd); return true; }
+        if (parseViewCommand(trimmed)) { recordCommand(cmd); return true; }
+        if (parseBOM(trimmed)) { recordCommand(cmd); return true; }
+        if (parseAudit(trimmed)) { recordCommand(cmd); return true; }
+        if (parseMacro(trimmed)) { recordCommand(cmd); return true; }
+        if (parseExportCommand(trimmed)) { recordCommand(cmd); return true; }
+        if (parseHelp(trimmed)) { recordCommand(cmd); return true; }
+        
         return false;
     }
 
@@ -917,10 +1459,27 @@ const SmartFlowCommands = (function() {
     }
 
     function init(coreInstance, catalogInstance, rendererInstance, notifyFn, renderFn, voiceFn) {
-        _core = coreInstance; _catalog = catalogInstance; _renderer = rendererInstance;
-        _notifyUI = notifyFn; _renderUI = renderFn;
+        _core = coreInstance;
+        _catalog = catalogInstance;
+        _renderer = rendererInstance;
+        _notifyUI = notifyFn;
+        _renderUI = renderFn;
         _voiceFn = voiceFn || null;
     }
 
-    return { init, executeCommand, executeBatch, importPCF, getPortDirectionLocal };
+    // ================================================================
+    //  API PÚBLICA
+    // ================================================================
+    return {
+        init,
+        executeCommand,
+        executeBatch,
+        importPCF,
+        getPortDirectionLocal,
+        // Nuevos accesos públicos
+        getMacros: () => _macros,
+        getHistory: () => window._commandHistory || [],
+        clearHistory: () => { window._commandHistory = []; }
+    };
+
 })();
