@@ -1,4 +1,10 @@
 
+// ============================================================
+// SMARTFLOW CORE v5.5 - Corregido para ES Modules / r160
+// Archivo: js/core.js
+// Corrección: Uso de variables internas en lugar de this
+// ============================================================
+
 const SmartFlowCore = (function() {
     
     let _db = {
@@ -61,6 +67,19 @@ const SmartFlowCore = (function() {
         notification: []
     };
 
+    // ================================================================
+    // VARIABLES INTERNAS PARA CALLBACKS (CORREGIDO)
+    // ================================================================
+    let _notifyUI = (msg, isErr) => {
+        console.log(msg);
+        emit('notification', { message: msg, isError: isErr });
+    };
+    let _renderUI = () => {};
+    let _onSelectionChanged = (obj) => {};
+
+    // ================================================================
+    // FUNCIONES DE EVENTOS
+    // ================================================================
     function on(eventName, callback) {
         if (_listeners[eventName]) {
             _listeners[eventName].push(callback);
@@ -80,13 +99,6 @@ const SmartFlowCore = (function() {
             });
         }
     }
-
-    let _notifyUI = (msg, isErr) => {
-        console.log(msg);
-        emit('notification', { message: msg, isError: isErr });
-    };
-    let _renderUI = () => {};
-    let _onSelectionChanged = (obj) => {};
 
     const _exists = (tag, type) => _db[type].some(item => item.tag === tag);
     const _deepClone = (obj) => {
@@ -399,13 +411,18 @@ const SmartFlowCore = (function() {
         _notifyUI(`Datum actualizado: EL=${_datumElevation}m, N=${_datumNorth}, E=${_datumEast}`, false);
     }
 
+    // ================================================================
+    // API PÚBLICA (CORREGIDA - usa variables internas)
+    // ================================================================
     return {
+        // CORREGIDO: init asigna a variables internas
         init: function(notifyFn, renderFn, propertyPanelFn) {
             _notifyUI = notifyFn || _notifyUI;
             _renderUI = renderFn || _renderUI;
-            this._onSelectionChanged = propertyPanelFn || (() => {});
+            _onSelectionChanged = propertyPanelFn || (() => {});
             rebuildIndexes();
             this._saveState();
+            console.log('✅ SmartFlowCore inicializado correctamente');
         },
 
         on,
@@ -424,6 +441,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return true;
         },
+        
         addLine: function(linea) {
             if (!linea.tag) return _notifyUI("Error: Tag de línea requerido.", true);
             if (_linesMap.has(linea.tag)) return _notifyUI(`Error: La línea ${linea.tag} ya existe.`, true);
@@ -454,6 +472,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return true;
         },
+        
         syncPhysicalData,
 
         updateEquipment: function(tag, datos) {
@@ -467,6 +486,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return true;
         },
+        
         updateLine: function(tag, datos) {
             const line = _linesMap.get(tag);
             if (!line) return _notifyUI(`Línea ${tag} no encontrada.`, true);
@@ -477,6 +497,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return true;
         },
+        
         updatePuerto: function(ownerTag, puertoId, cambios) {
             const owner = findObjectByTag(ownerTag);
             if (!owner) return _notifyUI(`Objeto ${ownerTag} no encontrado.`, true);
@@ -508,6 +529,7 @@ const SmartFlowCore = (function() {
             _notifyUI("Nuevo proyecto creado.", false);
             emit('modelChanged', { type: 'newProject' });
         },
+        
         importState: function(state) {
             const data = typeof state === 'string' ? JSON.parse(state) : state;
             let equipos = data.equipos || (data.data && data.data.equipos) || [];
@@ -527,6 +549,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return true;
         },
+        
         exportProject: function() {
             return JSON.stringify({ equipos: _db.equipos, lines: _db.lines });
         },
@@ -537,6 +560,7 @@ const SmartFlowCore = (function() {
             if (_history.past.length > _history.maxSize) _history.past.shift();
             _history.future = [];
         },
+        
         undo: function() {
             if (_history.past.length <= 1) return _notifyUI("Nada que deshacer.", true);
             const current = _deepClone({ equipos: _db.equipos, lines: _db.lines });
@@ -553,6 +577,7 @@ const SmartFlowCore = (function() {
             emit('modelChanged', { type: 'undo' });
             scheduleAudit();
         },
+        
         redo: function() {
             if (_history.future.length === 0) return _notifyUI("Nada que rehacer.", true);
             const next = _history.future.pop();
@@ -569,6 +594,7 @@ const SmartFlowCore = (function() {
         },
 
         auditModel: function() { return runAllAudits().report; },
+        
         recalculateAll: function() {
             syncPhysicalData();
             const result = runAllAudits(true);
@@ -577,6 +603,7 @@ const SmartFlowCore = (function() {
             _renderUI();
             emit('modelChanged', { type: 'recalculateAll' });
         },
+        
         getLastAuditResults: function() { return _lastAuditResults; },
 
         connectSmart: function(source, target) {
@@ -595,6 +622,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return true;
         },
+        
         injectAccessory: function(lineTag, param, accesorioDef) {
             const result = _splitLineSegment(lineTag, param);
             if (!result) return null;
@@ -614,6 +642,7 @@ const SmartFlowCore = (function() {
             scheduleAudit();
             return result;
         },
+        
         splitLine: function(lineTag, point, config) {
             const line = _linesMap.get(lineTag);
             if (!line) { _notifyUI("Línea no encontrada.", true); return null; }
@@ -656,10 +685,11 @@ const SmartFlowCore = (function() {
             return { componente: nuevoAccesorio, linea: line };
         },
 
+        // CORREGIDO: setSelected usa variable interna _onSelectionChanged
         setSelected: function(element) {
             if (element && element.obj && !findObjectByTag(element.obj.tag)) {
                 _selectedElement = null;
-                this._onSelectionChanged(null);
+                _onSelectionChanged(null);
                 _renderUI();
                 return;
             }
@@ -667,11 +697,12 @@ const SmartFlowCore = (function() {
             _renderUI();
             if (_selectedElement && _selectedElement.obj) {
                 const info = this.getPropertyInfo(_selectedElement.obj.tag);
-                this._onSelectionChanged(info);
+                _onSelectionChanged(info);
             } else {
-                this._onSelectionChanged(null);
+                _onSelectionChanged(null);
             }
         },
+        
         getPropertyInfo: function(tag) {
             const obj = findObjectByTag(tag);
             if (!obj) return null;
@@ -697,6 +728,7 @@ const SmartFlowCore = (function() {
                 spool: isLine ? getSpoolReport(tag) : null
             };
         },
+        
         updateFromPanel: function(tag, field, newValue) {
             const obj = findObjectByTag(tag);
             if (!obj) { _notifyUI("Objeto no encontrado.", true); return false; }
@@ -746,3 +778,11 @@ const SmartFlowCore = (function() {
         get linesMap() { return _linesMap; }
     };
 })();
+
+// Exponer globalmente para compatibilidad con scripts legacy
+if (typeof window !== 'undefined') {
+    window.SmartFlowCore = SmartFlowCore;
+}
+
+// Para ES modules
+export default SmartFlowCore;
