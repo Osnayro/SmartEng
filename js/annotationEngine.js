@@ -1,9 +1,10 @@
 
 // ============================================================
-// SMARTFLOW ANNOTATION ENGINE v2.0
+// SMARTFLOW ANNOTATION ENGINE v3.0 - Nivel 2
 // Archivo: js/annotationEngine.js
 // Etiquetado, Cotas y Dimensiones según normas ISA/ISO
 // Capa 2D sobre el render 3D - No interfiere con geometría
+// MEJORAS: Anticolapso avanzado, rendimiento, nuevas features
 // ============================================================
 
 const SmartFlowAnnotations = (function() {
@@ -23,10 +24,10 @@ const SmartFlowAnnotations = (function() {
     let _pipeLabels = new Map();
     let _dimensionLines = [];
     let _callouts = [];
-    let _bomTable = null;
+    let _bomItems = [];
     
     let _config = {
-        standard: 'ISA',
+        standard: 'ISA',  // 'ISA' o 'ISO'
         fontFamily: 'monospace',
         fontSizeTag: 11,
         fontSizeDimension: 9,
@@ -53,22 +54,41 @@ const SmartFlowAnnotations = (function() {
         showBOMTable: false,
         showFlowArrows: true,
         showElevationMarkers: true,
-        showNorthArrow: true
+        showNorthArrow: true,
+        showGrid: false,           // NUEVO: mostrar grid de referencia
+        showCoordinates: false,    // NUEVO: mostrar coordenadas en cursor
+        antiCollapseDistance: 25,  // NUEVO: distancia mínima entre etiquetas (px)
+        maxLabelsPerFrame: 50      // NUEVO: límite de etiquetas por frame
     };
     
     let _isDirty = true;
     let _animationFrameId = null;
     let _lastCameraMatrix = null;
+    let _lastCameraPosition = null;
+    let _lastRenderTime = 0;
+    let _renderThrottle = 33; // ms entre renders (aprox 30 fps para anotaciones)
+    
+    // Cache de proyecciones para optimización
+    let _projectionCache = new Map();
+    let _cacheTimestamp = 0;
     
     // ================================================================
-    // 2. PROYECCIÓN 3D → 2D (Screen Space)
+    // 2. PROYECCIÓN 3D → 2D (Screen Space) con Caching
     // ================================================================
     
-    function project3Dto2D(point3D) {
+    function project3Dto2D(point3D, useCache = true) {
         if (!_renderer3D) return null;
         
         const camera = _renderer3D.getCamera();
         if (!camera) return null;
+        
+        // Cache key basada en posición y matriz de cámara
+        if (useCache) {
+            const cacheKey = `${point3D.x.toFixed(1)}_${point3D.y.toFixed(1)}_${point3D.z.toFixed(1)}_${_cacheTimestamp}`;
+            if (_projectionCache.has(cacheKey)) {
+                return _projectionCache.get(cacheKey);
+            }
+        }
         
         const vector = new THREE.Vector3(point3D.x, point3D.y, point3D.z);
         vector.project(camera);
@@ -76,12 +96,24 @@ const SmartFlowAnnotations = (function() {
         const canvas = _annotationCanvas;
         if (!canvas) return null;
         
-        return {
+        const result = {
             x: (vector.x * 0.5 + 0.5) * canvas.width,
             y: (-vector.y * 0.5 + 0.5) * canvas.height,
             z: vector.z,
-            visible: vector.z < 1
+            visible: vector.z < 1 && vector.z > -0.5
         };
+        
+        if (useCache) {
+            const cacheKey = `${point3D.x.toFixed(1)}_${point3D.y.toFixed(1)}_${point3D.z.toFixed(1)}_${_cacheTimestamp}`;
+            _projectionCache.set(cacheKey, result);
+        }
+        
+        return result;
+    }
+    
+    function invalidateCache() {
+        _projectionCache.clear();
+        _cacheTimestamp = Date.now();
     }
     
     function isBehindCamera(point3D) {
@@ -97,7 +129,7 @@ const SmartFlowAnnotations = (function() {
     }
     
     // ================================================================
-    // 3. GENERADORES DE ETIQUETAS
+    // 3. GENERADORES DE ETIQUETAS (ISA/ISO)
     // ================================================================
     
     function generateEquipmentTag(eq) {
@@ -108,8 +140,10 @@ const SmartFlowAnnotations = (function() {
                     serviceDescription: eq.servicio || eq.tipo || '',
                     format: 'ISA-5.1',
                     line1: eq.tag,
-                    line2: eq.servicio || '',
-                    fontSize: _config.fontSizeTag
+                    line2: eq.servicio || eq.tipo || '',
+                    line3: eq.spec ? `Spec: ${eq.spec}` : '',
+                    fontSize: _config.fontSizeTag,
+                    priority: eq.tipo === 'tanque_v' ? 1 : eq.tipo === 'bomba' ? 2 : 3
                 };
             case 'ISO':
                 return {
@@ -118,23 +152,29 @@ const SmartFlowAnnotations = (function() {
                     equipmentCode: (eq.tipo || '').toUpperCase(),
                     format: 'ISO-10628',
                     line1: eq.tag,
-                    fontSize: _config.fontSizeTag
+                    line2: eq.tipo || '',
+                    fontSize: _config.fontSizeTag,
+                    priority: 2
                 };
             default:
                 return {
                     mainTag: eq.tag,
                     line1: eq.tag,
-                    fontSize: _config.fontSizeTag
+                    fontSize: _config.fontSizeTag,
+                    priority: 3
                 };
         }
     }
     
     function generateLineTag(line) {
+        const materialCode = line.material === 'SS304' ? 'SS' : line.material === 'CS' ? 'CS' : (line.material || '');
         return {
             mainTag: line.tag,
             line1: line.tag,
-            line2: (line.diameter || '?') + '" ' + (line.spec || '') + ' ' + (line.material || ''),
-            fontSize: _config.fontSizeTag - 1
+            line2: `${line.diameter || '?'}" ${materialCode} ${line.spec || ''}`,
+            line3: line.rating ? `CL ${line.rating}` : '',
+            fontSize: _config.fontSizeTag - 1,
+            priority: 2
         };
     }
     
@@ -143,13 +183,19 @@ const SmartFlowAnnotations = (function() {
         if (_config.dualDimension) {
             const altValue = unit === 'mm' ? value / 25.4 : value * 25.4;
             const altUnit = unit === 'mm' ? 'in' : 'mm';
-            return value.toFixed(0) + ' ' + unit + ' [' + altValue.toFixed(2) + ' ' + altUnit + ']';
+            const mainValue = value >= 1000 ? (value / 1000).toFixed(2) : value.toFixed(0);
+            const mainUnit = value >= 1000 ? 'm' : unit;
+            const finalMainValue = value >= 1000 ? value / 1000 : value;
+            return `${finalMainValue.toFixed(2)} ${mainUnit} [${altValue.toFixed(2)} ${altUnit}]`;
+        }
+        if (value >= 1000) {
+            return (value / 1000).toFixed(2) + ' m';
         }
         return value.toFixed(0) + ' ' + unit;
     }
     
     // ================================================================
-    // 4. DIBUJO DE ANOTACIONES (Canvas 2D)
+    // 4. DIBUJO DE ANOTACIONES (Canvas 2D Mejorado)
     // ================================================================
     
     function drawRoundedRect(x, y, width, height, radius, fillColor, strokeColor, lineWidth) {
@@ -179,13 +225,24 @@ const SmartFlowAnnotations = (function() {
         _ctx.restore();
     }
     
+    // NUEVO: Sombra para mejor legibilidad
+    function drawShadow(x, y, width, height, blur = 4) {
+        _ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        _ctx.shadowBlur = blur;
+        _ctx.fillStyle = 'transparent';
+        _ctx.fillRect(x, y, width, height);
+        _ctx.shadowColor = 'transparent';
+        _ctx.shadowBlur = 0;
+    }
+    
     function drawEquipmentLabel(screenPos, tagData, isSelected) {
         const padding = 6;
         const lineHeight = 14;
         const lines = [tagData.line1];
         if (tagData.line2) lines.push(tagData.line2);
+        if (tagData.line3 && _config.standard === 'ISA') lines.push(tagData.line3);
         
-        _ctx.font = 'bold ' + tagData.fontSize + 'px ' + _config.fontFamily;
+        _ctx.font = `bold ${tagData.fontSize}px ${_config.fontFamily}`;
         let maxWidth = 0;
         lines.forEach(function(line) {
             const metrics = _ctx.measureText(line);
@@ -202,6 +259,9 @@ const SmartFlowAnnotations = (function() {
         x = Math.max(2, Math.min(x, canvas.width - boxWidth - 2));
         y = Math.max(2, Math.min(y, canvas.height - boxHeight - 2));
         
+        // Sombra
+        drawShadow(x - 2, y - 2, boxWidth + 4, boxHeight + 4);
+        
         // Línea guía
         _ctx.strokeStyle = _config.leaderColor;
         _ctx.lineWidth = 1;
@@ -212,20 +272,23 @@ const SmartFlowAnnotations = (function() {
         _ctx.stroke();
         _ctx.setLineDash([]);
         
-        // Punto de anclaje
+        // Punto de anclaje con efecto glow si está seleccionado
         _ctx.fillStyle = isSelected ? '#ffd700' : _config.tagColor;
+        _ctx.shadowBlur = isSelected ? 8 : 0;
+        _ctx.shadowColor = isSelected ? '#ffd700' : 'transparent';
         _ctx.beginPath();
-        _ctx.arc(screenPos.x, screenPos.y, 3, 0, Math.PI * 2);
+        _ctx.arc(screenPos.x, screenPos.y, isSelected ? 5 : 3, 0, Math.PI * 2);
         _ctx.fill();
+        _ctx.shadowBlur = 0;
         
         // Caja
-        const bgColor = isSelected ? 'rgba(255, 215, 0, 0.2)' : _config.backgroundColor;
+        const bgColor = isSelected ? 'rgba(255, 215, 0, 0.25)' : _config.backgroundColor;
         const borderColor = isSelected ? '#ffd700' : _config.tagColor;
         drawRoundedRect(x, y, boxWidth, boxHeight, 4, bgColor, borderColor, isSelected ? 2 : 1);
         
         // Texto
         _ctx.fillStyle = isSelected ? '#ffffff' : _config.tagColor;
-        _ctx.font = 'bold ' + tagData.fontSize + 'px ' + _config.fontFamily;
+        _ctx.font = `bold ${tagData.fontSize}px ${_config.fontFamily}`;
         _ctx.textAlign = 'left';
         _ctx.textBaseline = 'top';
         
@@ -238,21 +301,27 @@ const SmartFlowAnnotations = (function() {
     
     function drawPipeTag(screenPos, tagData) {
         const text = tagData.line1;
-        _ctx.font = tagData.fontSize + 'px ' + _config.fontFamily;
+        _ctx.font = `${tagData.fontSize}px ${_config.fontFamily}`;
         const metrics = _ctx.measureText(text);
-        const width = metrics.width + 8;
-        const height = 14;
+        const width = metrics.width + 10;
+        const height = 16;
         
-        const x = screenPos.x - width / 2;
-        const y = screenPos.y - height - 8;
+        let x = screenPos.x - width / 2;
+        let y = screenPos.y - height - 8;
+        
+        const canvas = _annotationCanvas;
+        x = Math.max(2, Math.min(x, canvas.width - width - 2));
+        y = Math.max(2, Math.min(y, canvas.height - height - 2));
+        
+        drawShadow(x - 2, y - 2, width + 4, height + 4);
         
         drawRoundedRect(x, y, width, height, 3, _config.backgroundColor, _config.tagColor, 0.5);
         
         _ctx.fillStyle = _config.tagColor;
-        _ctx.font = tagData.fontSize + 'px ' + _config.fontFamily;
+        _ctx.font = `${tagData.fontSize}px ${_config.fontFamily}`;
         _ctx.textAlign = 'center';
         _ctx.textBaseline = 'middle';
-        _ctx.fillText(text, screenPos.x, y + height / 2);
+        _ctx.fillText(text, x + width / 2, y + height / 2);
     }
     
     function drawDimensionLine(from2D, to2D, valueText, orientation) {
@@ -274,7 +343,7 @@ const SmartFlowAnnotations = (function() {
         // Líneas de extensión
         _ctx.strokeStyle = _config.dimensionColor;
         _ctx.lineWidth = 0.5;
-        _ctx.setLineDash([]);
+        _ctx.setLineDash([2, 3]);
         
         _ctx.beginPath();
         _ctx.moveTo(from2D.x, from2D.y);
@@ -286,9 +355,11 @@ const SmartFlowAnnotations = (function() {
         _ctx.lineTo(lineToX, lineToY);
         _ctx.stroke();
         
+        _ctx.setLineDash([]);
+        
         // Línea de cota
         _ctx.strokeStyle = _config.dimensionColor;
-        _ctx.lineWidth = 1;
+        _ctx.lineWidth = 1.2;
         _ctx.beginPath();
         _ctx.moveTo(lineFromX, lineFromY);
         _ctx.lineTo(lineToX, lineToY);
@@ -298,16 +369,19 @@ const SmartFlowAnnotations = (function() {
         drawTick(lineFromX, lineFromY, perpX, perpY, 8, _config.dimensionColor);
         drawTick(lineToX, lineToY, perpX, perpY, 8, _config.dimensionColor);
         
-        // Texto
+        // Texto con fondo
         const midX = (lineFromX + lineToX) / 2;
         const midY = (lineFromY + lineToY) / 2;
         
+        _ctx.font = `${_config.fontSizeDimension}px ${_config.fontFamily}`;
+        const textWidth = _ctx.measureText(valueText).width + 8;
+        
+        drawShadow(midX - textWidth/2 - 2, midY - 10, textWidth + 4, 20);
+        
         _ctx.fillStyle = _config.backgroundColor;
-        const textWidth = _ctx.measureText(valueText).width + 6;
-        _ctx.fillRect(midX - textWidth/2, midY - 8, textWidth, 16);
+        _ctx.fillRect(midX - textWidth/2, midY - 9, textWidth, 18);
         
         _ctx.fillStyle = _config.dimensionColor;
-        _ctx.font = _config.fontSizeDimension + 'px ' + _config.fontFamily;
         _ctx.textAlign = 'center';
         _ctx.textBaseline = 'middle';
         _ctx.fillText(valueText, midX, midY);
@@ -334,15 +408,16 @@ const SmartFlowAnnotations = (function() {
         _ctx.strokeStyle = '#00ff88';
         _ctx.lineWidth = 1.5;
         
+        _ctx.shadowBlur = 0;
         _ctx.beginPath();
         _ctx.moveTo(midX, midY);
         _ctx.lineTo(
-            midX - dx/len * arrowSize - dy/len * arrowSize * 0.5,
-            midY - dy/len * arrowSize + dx/len * arrowSize * 0.5
+            midX - dx/len * arrowSize - dy/len * arrowSize * 0.4,
+            midY - dy/len * arrowSize + dx/len * arrowSize * 0.4
         );
         _ctx.lineTo(
-            midX - dx/len * arrowSize + dy/len * arrowSize * 0.5,
-            midY - dy/len * arrowSize - dx/len * arrowSize * 0.5
+            midX - dx/len * arrowSize + dy/len * arrowSize * 0.4,
+            midY - dy/len * arrowSize - dx/len * arrowSize * 0.4
         );
         _ctx.closePath();
         _ctx.fill();
@@ -355,6 +430,8 @@ const SmartFlowAnnotations = (function() {
         const cx = 60;
         const cy = canvas.height - 60;
         const size = 30;
+        
+        drawShadow(cx - size - 5, cy - size - 5, size * 2 + 10, size * 2 + 10, 6);
         
         _ctx.strokeStyle = _config.dimensionColor;
         _ctx.lineWidth = 1.5;
@@ -379,7 +456,7 @@ const SmartFlowAnnotations = (function() {
         _ctx.fill();
         
         _ctx.fillStyle = '#ffffff';
-        _ctx.font = 'bold 12px ' + _config.fontFamily;
+        _ctx.font = `bold 12px ${_config.fontFamily}`;
         _ctx.textAlign = 'center';
         _ctx.fillText('N', cx, cy - size - 8);
     }
@@ -387,11 +464,13 @@ const SmartFlowAnnotations = (function() {
     function drawElevationMarker(screenPos, elevation) {
         if (!_config.showElevationMarkers) return;
         
-        const elText = 'EL +' + (elevation / 1000).toFixed(3) + ' m';
-        _ctx.font = '8px ' + _config.fontFamily;
+        const elText = `EL +${(elevation / 1000).toFixed(3)} m`;
+        _ctx.font = `8px ${_config.fontFamily}`;
         const width = _ctx.measureText(elText).width + 10;
         
-        _ctx.fillStyle = 'rgba(10, 10, 35, 0.85)';
+        drawShadow(screenPos.x - width/2 - 2, screenPos.y - 22, width + 4, 20);
+        
+        _ctx.fillStyle = 'rgba(10, 10, 35, 0.9)';
         _ctx.fillRect(screenPos.x - width/2, screenPos.y - 20, width, 16);
         
         _ctx.strokeStyle = '#22d3ee';
@@ -414,8 +493,32 @@ const SmartFlowAnnotations = (function() {
         _ctx.stroke();
     }
     
+    function drawReferenceGrid() {
+        if (!_config.showGrid) return;
+        
+        const canvas = _annotationCanvas;
+        const step = 50;
+        
+        _ctx.strokeStyle = 'rgba(100, 100, 150, 0.15)';
+        _ctx.lineWidth = 0.5;
+        
+        for (let x = 0; x < canvas.width; x += step) {
+            _ctx.beginPath();
+            _ctx.moveTo(x, 0);
+            _ctx.lineTo(x, canvas.height);
+            _ctx.stroke();
+        }
+        
+        for (let y = 0; y < canvas.height; y += step) {
+            _ctx.beginPath();
+            _ctx.moveTo(0, y);
+            _ctx.lineTo(canvas.width, y);
+            _ctx.stroke();
+        }
+    }
+    
     // ================================================================
-    // 5. RECOLECCIÓN DE DATOS
+    // 5. RECOLECCIÓN DE DATOS (Optimizada)
     // ================================================================
     
     function collectAnnotations() {
@@ -428,16 +531,20 @@ const SmartFlowAnnotations = (function() {
         
         const db = _core.getDb();
         
+        // Equipos
         (db.equipos || []).forEach(function(eq) {
+            if (eq.tipo === 'plataforma') return; // No etiquetar plataformas
+            
             const tagData = generateEquipmentTag(eq);
             const position3D = {
                 x: eq.posX || 0,
-                y: (eq.posY || 0) + (eq.altura || 1500) / 2 + 300,
+                y: (eq.posY || 0) + ((eq.altura || 1500) / 2) + 300,
                 z: eq.posZ || 0
             };
             _equipmentLabels.set(eq.tag, { position3D: position3D, tagData: tagData, equipment: eq });
         });
         
+        // Tuberías
         (db.lines || []).forEach(function(line) {
             const pts = _core.getLinePoints(line) || line._cachedPoints || [];
             if (pts.length < 2) return;
@@ -452,6 +559,7 @@ const SmartFlowAnnotations = (function() {
                 line: line
             });
             
+            // Cotas
             if (_config.showDimensions) {
                 for (let i = 1; i < pts.length; i++) {
                     const dist = Math.hypot(
@@ -460,7 +568,7 @@ const SmartFlowAnnotations = (function() {
                         pts[i].z - pts[i-1].z
                     );
                     
-                    if (dist > 100) {
+                    if (dist > 200) {
                         _dimensionLines.push({
                             from: pts[i-1],
                             to: pts[i],
@@ -474,6 +582,7 @@ const SmartFlowAnnotations = (function() {
                 }
             }
             
+            // Puntos de elevación
             if (_config.showElevationMarkers) {
                 for (let i = 1; i < pts.length; i++) {
                     if (Math.abs(pts[i].y - pts[i-1].y) > 500) {
@@ -489,34 +598,58 @@ const SmartFlowAnnotations = (function() {
     }
     
     // ================================================================
-    // 6. RENDER LOOP DE ANOTACIONES
+    // 6. RENDER LOOP CON THROTTLE Y CACHING
     // ================================================================
+    
+    function shouldRender() {
+        if (_isDirty) return true;
+        
+        const camera = _renderer3D ? _renderer3D.getCamera() : null;
+        if (!camera) return false;
+        
+        const currentPos = camera.position.clone();
+        if (_lastCameraPosition && !currentPos.equals(_lastCameraPosition)) {
+            _lastCameraPosition = currentPos;
+            return true;
+        }
+        
+        const now = Date.now();
+        if (now - _lastRenderTime < _renderThrottle) return false;
+        
+        return false;
+    }
     
     function renderAnnotations() {
         if (!_ctx || !_annotationCanvas) return;
         
+        const now = Date.now();
+        if (!shouldRender() && !_isDirty) return;
+        
+        _lastRenderTime = now;
+        invalidateCache();
+        
         const canvas = _annotationCanvas;
         _ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        const camera = _renderer3D ? _renderer3D.getCamera() : null;
-        if (camera) {
-            const currentMatrix = camera.matrixWorldInverse.clone();
-            if (_lastCameraMatrix && currentMatrix.equals(_lastCameraMatrix) && !_isDirty) {
-                return;
-            }
-            _lastCameraMatrix = currentMatrix;
-        }
-        _isDirty = false;
+        // Grid de referencia
+        drawReferenceGrid();
         
         collectAnnotations();
         
+        // Recolectar todas las etiquetas con prioridad
         const allLabels = [];
         
         if (_config.showEquipmentTags) {
             _equipmentLabels.forEach(function(data, tag) {
                 const screenPos = project3Dto2D(data.position3D);
                 if (screenPos && screenPos.visible && !isBehindCamera(data.position3D)) {
-                    allLabels.push({ data: data, screenPos: screenPos, tag: tag, type: 'equipment' });
+                    allLabels.push({ 
+                        data: data, 
+                        screenPos: screenPos, 
+                        tag: tag, 
+                        type: 'equipment',
+                        priority: data.tagData.priority || 3
+                    });
                 }
             });
         }
@@ -525,36 +658,53 @@ const SmartFlowAnnotations = (function() {
             _pipeLabels.forEach(function(data, tag) {
                 const screenPos = project3Dto2D(data.position3D);
                 if (screenPos && screenPos.visible && !isBehindCamera(data.position3D)) {
-                    allLabels.push({ data: data, screenPos: screenPos, tag: tag, type: 'pipe' });
+                    allLabels.push({ 
+                        data: data, 
+                        screenPos: screenPos, 
+                        tag: tag, 
+                        type: 'pipe',
+                        priority: data.tagData.priority || 2
+                    });
                 }
             });
         }
         
-        allLabels.sort(function(a, b) { return a.screenPos.z - b.screenPos.z; });
+        // Ordenar por prioridad y profundidad
+        allLabels.sort(function(a, b) { 
+            if (a.priority !== b.priority) return a.priority - b.priority;
+            return a.screenPos.z - b.screenPos.z; 
+        });
         
+        // Anti-colapso avanzado
         const placedBoxes = [];
         const filteredLabels = [];
+        const minDistance = _config.antiCollapseDistance;
         
         allLabels.forEach(function(label) {
-            const boxW = 120, boxH = 30;
-            let overlaps = false;
+            const boxWidth = label.type === 'equipment' ? 140 : 80;
+            const boxHeight = label.type === 'equipment' ? 50 : 20;
+            let collides = false;
             
             for (let i = 0; i < placedBoxes.length; i++) {
                 const box = placedBoxes[i];
-                if (Math.abs(label.screenPos.x - box.x) < boxW &&
-                    Math.abs(label.screenPos.y - box.y) < boxH) {
-                    overlaps = true;
+                const dx = Math.abs(label.screenPos.x - box.x);
+                const dy = Math.abs(label.screenPos.y - box.y);
+                if (dx < minDistance && dy < minDistance) {
+                    collides = true;
                     break;
                 }
             }
             
-            if (!overlaps) {
+            if (!collides) {
                 filteredLabels.push(label);
                 placedBoxes.push({ x: label.screenPos.x, y: label.screenPos.y });
             }
         });
         
-        // Dibujar cotas
+        // Limitar número de etiquetas por frame
+        const labelsToDraw = filteredLabels.slice(0, _config.maxLabelsPerFrame);
+        
+        // Cotas
         if (_config.showDimensions) {
             const dimsToDraw = _dimensionLines.slice(0, _config.maxDimensionLines);
             dimsToDraw.forEach(function(dim) {
@@ -592,7 +742,7 @@ const SmartFlowAnnotations = (function() {
         }
         
         // Etiquetas de equipos
-        filteredLabels.forEach(function(label) {
+        labelsToDraw.forEach(function(label) {
             if (label.type === 'equipment') {
                 const selected = _renderer3D ? _renderer3D.getSelected() : null;
                 const isSelected = selected && selected.obj && selected.obj.tag === label.tag;
@@ -601,7 +751,7 @@ const SmartFlowAnnotations = (function() {
         });
         
         // Etiquetas de tuberías
-        filteredLabels.forEach(function(label) {
+        labelsToDraw.forEach(function(label) {
             if (label.type === 'pipe') {
                 drawPipeTag(label.screenPos, label.data.tagData);
             }
@@ -609,6 +759,8 @@ const SmartFlowAnnotations = (function() {
         
         // Flecha Norte
         drawNorthArrow();
+        
+        _isDirty = false;
     }
     
     function startAnnotationLoop() {
@@ -663,17 +815,33 @@ const SmartFlowAnnotations = (function() {
                 _annotationCanvas.width = container.clientWidth;
                 _annotationCanvas.height = container.clientHeight;
                 _isDirty = true;
+                invalidateCache();
             }
         }
         resize();
         window.addEventListener('resize', resize);
         
+        // Observar cambios de tamaño del contenedor
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(function() {
+                resize();
+            });
+            resizeObserver.observe(container);
+        }
+        
         container.appendChild(_annotationCanvas);
         _ctx = _annotationCanvas.getContext('2d');
         
+        // Guardar posición inicial de cámara
+        const camera = _renderer3D ? _renderer3D.getCamera() : null;
+        if (camera) {
+            _lastCameraPosition = camera.position.clone();
+        }
+        
         startAnnotationLoop();
         
-        console.log('SmartFlowAnnotations v2.0 inicializado - Capa 2D activa');
+        console.log('SmartFlowAnnotations v3.0 (Nivel 2) inicializado');
+        return true;
     }
     
     function markDirty() {
@@ -687,6 +855,7 @@ const SmartFlowAnnotations = (function() {
         }
         _annotationCanvas = null;
         _ctx = null;
+        _projectionCache.clear();
     }
     
     // ================================================================
@@ -700,25 +869,37 @@ const SmartFlowAnnotations = (function() {
         renderAnnotations: renderAnnotations,
         
         setConfig: function(key, value) { 
-            _config[key] = value; 
-            _isDirty = true; 
+            if (_config[key] !== undefined) {
+                _config[key] = value; 
+                _isDirty = true; 
+            }
         },
-        getConfig: function() { return _config; },
+        getConfig: function() { return { ..._config }; },
         
         toggleLayer: function(layerName) {
             const key = 'show' + layerName.charAt(0).toUpperCase() + layerName.slice(1);
             if (_config[key] !== undefined) {
                 _config[key] = !_config[key];
                 _isDirty = true;
+                return _config[key];
             }
+            return false;
         },
         
         setStandard: function(standard) {
-            _config.standard = standard;
-            _isDirty = true;
+            if (standard === 'ISA' || standard === 'ISO') {
+                _config.standard = standard;
+                _isDirty = true;
+            }
         },
         
         getCanvas: function() { return _annotationCanvas; },
-        getContext: function() { return _ctx; }
+        getContext: function() { return _ctx; },
+        
+        // NUEVO: Forzar actualización manual
+        update: function() { 
+            _isDirty = true; 
+            renderAnnotations();
+        }
     };
 })();
