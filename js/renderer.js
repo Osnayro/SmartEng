@@ -19,37 +19,11 @@ const SmartFlowRenderer = (function() {
     let _hoveredComponent = null;
     let _hoveredComponentScreenPos = null;
 
-    // ═══════════════════════════════════════════════════════
-    // CONFIGURACIÓN MEJORADA DE MATERIALES Y NORMAS
-    // ═══════════════════════════════════════════════════════
     const ISO_CONFIG = {
-        MATERIALS: { 
-            'PPR': 'PP', 'CARBON_STEEL': 'CS', 'STAINLESS_STEEL': 'SS', 
-            'POLIETILENO': 'PE', 'PVC': 'PV', 'HDPE': 'PE', 'CPVC': 'CP',
-            'FRP': 'FR', 'PTFE_LINED': 'PT', 'GLASS_LINED': 'GL',
-            'DUPLEX': 'DX', 'HASTELLOY': 'HY', 'ALLOY20': 'A2'
-        },
-        COLORS: { 
-            'PP': '#10b981', 'CS': '#475569', 'SS': '#94a3b8', 'PE': '#1e293b', 
-            'PV': '#7c3aed', 'CP': '#fb923c', 'FR': '#8b5cf6', 'PT': '#a78bfa',
-            'GL': '#f0f9ff', 'DX': '#cbd5e1', 'HY': '#f59e0b', 'A2': '#fbbf24'
-        },
-        PIPE_SCHEDULES: {
-            'SCH40': 1.0, 'SCH80': 1.25, 'SCH160': 1.5,
-            'STD': 1.0, 'XS': 1.25, 'XXS': 1.5
-        },
-        INSULATION_COLORS: {
-            'HOT': '#ff4444', 'COLD': '#4488ff', 'PERSONNEL': '#44ff44',
-            'NONE': null
-        },
-        WELD_SYMBOLS: {
-            'BUTT': '⊟', 'SOCKET': '⊡', 'THREADED': '⊠'
-        }
+        MATERIALS: { 'PPR': 'PP', 'CARBON_STEEL': 'CS', 'STAINLESS_STEEL': 'SS', 'POLIETILENO': 'PE', 'PVC': 'PV' },
+        COLORS: { 'PP': '#10b981', 'CS': '#475569', 'SS': '#94a3b8', 'PE': '#1e293b', 'PV': '#7c3aed' }
     };
 
-    // ═══════════════════════════════════════════════════════
-    // SISTEMA DE ANOTACIONES MEJORADO
-    // ═══════════════════════════════════════════════════════
     const AnnotationManager = {
         slots: [],
         occupiedBounds: [],
@@ -111,9 +85,6 @@ const SmartFlowRenderer = (function() {
         }
     };
 
-    // ═══════════════════════════════════════════════════════
-    // UTILIDADES DE PROYECCIÓN
-    // ═══════════════════════════════════════════════════════
     function project(p) {
         if (!p || p.x === undefined || p.y === undefined || p.z === undefined) return { x: 0, y: 0 };
         const x = (p.x - p.z) * COS30;
@@ -137,9 +108,6 @@ const SmartFlowRenderer = (function() {
         return "#" + (0x1000000 + (R<255?R<0?0:R:255)*0x10000 + (G<255?G<0?0:G:255)*0x100 + (B<255?B<0?0:B:255)).toString(16).slice(1);
     }
 
-    // ═══════════════════════════════════════════════════════
-    // GRADIENTES Y TEXTURAS MEJORADOS
-    // ═══════════════════════════════════════════════════════
     function getMaterialGradient(ctx, p1, p2, material, diameter) {
         const proj1 = project(p1), proj2 = project(p2);
         const angle = Math.atan2(proj2.y - proj1.y, proj2.x - proj1.x) + Math.PI/2;
@@ -149,24 +117,16 @@ const SmartFlowRenderer = (function() {
             proj1.x - Math.cos(angle)*w/2, proj1.y - Math.sin(angle)*w/2
         );
         const baseColor = ISO_CONFIG.COLORS[material] || '#94a3b8';
-        
         if (material === 'PP') {
             grad.addColorStop(0, '#064e3b');
-            grad.addColorStop(0.2, '#6ee7b7');
+            grad.addColorStop(0.25, '#6ee7b7');
             grad.addColorStop(0.5, baseColor);
-            grad.addColorStop(0.8, '#34d399');
             grad.addColorStop(1, '#065f46');
-        } else if (material === 'SS' || material === 'DX') {
-            grad.addColorStop(0, '#1a1a1a');
-            grad.addColorStop(0.25, '#c0c0c0');
-            grad.addColorStop(0.5, '#ffffff');
-            grad.addColorStop(0.75, '#c0c0c0');
-            grad.addColorStop(1, '#1a1a1a');
         } else {
             grad.addColorStop(0, '#1a1a1a');
-            grad.addColorStop(0.3, adjustColor(baseColor, -30));
+            grad.addColorStop(0.4, baseColor);
             grad.addColorStop(0.5, '#ffffffcc');
-            grad.addColorStop(0.7, adjustColor(baseColor, 20));
+            grad.addColorStop(0.6, baseColor);
             grad.addColorStop(1, '#000000');
         }
         return grad;
@@ -174,15 +134,12 @@ const SmartFlowRenderer = (function() {
 
     function getShortMaterial(materialName) {
         const name = materialName ? materialName.toUpperCase() : '';
-        for (const [key, val] of Object.entries(ISO_CONFIG.MATERIALS)) {
-            if (name.includes(key)) return val;
-        }
-        return name.substring(0,2) || 'UN';
+        return ISO_CONFIG.MATERIALS[name] || name.substring(0,2) || 'UN';
     }
 
     function formatDimensionText(dist) {
-        if (dist < 1000) return Math.round(dist).toString() + ' mm';
-        return (dist / 1000).toFixed(2) + ' m';
+        if (dist < 1000) return Math.round(dist).toString();
+        return (dist / 1000).toFixed(2) + "m";
     }
 
     function getComponentLabel(compType) {
@@ -203,32 +160,18 @@ const SmartFlowRenderer = (function() {
             'HANGER':'HG','PIPE_CLAMP':'PC','EXPANSION_JOINT':'EJ','FLEXIBLE_HOSE':'HO',
             'NIPPLE':'NI','STUB_END':'SE','CAMLOCK':'CM','QUICK_CONNECT':'QC',
             'STEAM_TRAP':'ST','SILENCER':'SI','FLAME_ARRESTER':'FA','VACUUM_BREAKER':'VB',
-            'DRAIN_VALVE':'DV','AIR_RELEASE':'AR','SAMPLE_COOLER':'SC','SAMPLE_VALVE':'SV',
-            'PLUG_VALVE':'PV','CHOKE_VALVE':'CH','CRYOGENIC_VALVE':'CV','ASEPTIC_VALVE':'AV'
+            'DRAIN_VALVE':'DV','AIR_RELEASE':'AR','SAMPLE_COOLER':'SC','SAMPLE_VALVE':'SV'
         };
         return fallback[compType] || compType?.substring(0,2) || '??';
     }
 
-    function getScheduleFactor(spec) {
-        if (!spec) return 1.0;
-        const upper = spec.toUpperCase();
-        for (const [key, val] of Object.entries(ISO_CONFIG.PIPE_SCHEDULES)) {
-            if (upper.includes(key)) return val;
-        }
-        return 1.0;
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // DIBUJO DE GRID Y ORIGEN
-    // ═══════════════════════════════════════════════════════
     function drawGrid(elevation = 0) {
         const step = 1000;
         const minX = -10000, maxX = 20000, minZ = -10000, maxZ = 20000;
         _ctx.beginPath();
         _ctx.strokeStyle = '#1e293b';
         _ctx.lineWidth = 1;
-        _ctx.globalAlpha = 0.12;
-        
+        _ctx.globalAlpha = 0.15;
         for (let x = minX; x <= maxX; x += step) {
             const p1 = project({ x, y: elevation, z: minZ });
             const p2 = project({ x, y: elevation, z: maxZ });
@@ -240,268 +183,62 @@ const SmartFlowRenderer = (function() {
             _ctx.moveTo(p1.x, p1.y); _ctx.lineTo(p2.x, p2.y);
         }
         _ctx.stroke();
-        
-        // Líneas principales cada 5000mm
-        _ctx.strokeStyle = '#334155';
-        _ctx.lineWidth = 1.5;
-        _ctx.globalAlpha = 0.2;
-        _ctx.beginPath();
-        for (let x = 0; x <= maxX; x += 5000) {
-            for (let sign = -1; sign <= 1; sign += 2) {
-                const sx = x * sign;
-                const p1 = project({ x: sx, y: elevation, z: minZ });
-                const p2 = project({ x: sx, y: elevation, z: maxZ });
-                _ctx.moveTo(p1.x, p1.y); _ctx.lineTo(p2.x, p2.y);
-            }
-        }
-        _ctx.stroke();
         _ctx.globalAlpha = 1.0;
     }
 
     function drawOrigin() {
         const o = project({ x: 0, y: _currentElevation, z: 0 });
         _ctx.beginPath();
-        _ctx.moveTo(o.x - 25, o.y); _ctx.lineTo(o.x + 25, o.y);
-        _ctx.moveTo(o.x, o.y - 25); _ctx.lineTo(o.x, o.y + 25);
+        _ctx.moveTo(o.x - 20, o.y); _ctx.lineTo(o.x + 20, o.y);
+        _ctx.moveTo(o.x, o.y - 20); _ctx.lineTo(o.x, o.y + 20);
         _ctx.strokeStyle = '#ff8888'; _ctx.lineWidth = 2; _ctx.stroke();
-        
-        // Etiqueta de origen con formato de ingeniería
-        _ctx.fillStyle = '#ff8888'; _ctx.font = 'bold 12px monospace';
-        _ctx.fillText(`ORIGEN (0, ${(_currentElevation/1000).toFixed(1)}m, 0)`, o.x + 20, o.y - 10);
-        
-        // Flecha Norte
-        const northAngle = -Math.PI / 6;
-        const northLen = 40;
-        const nx = o.x + Math.cos(northAngle) * northLen;
-        const ny = o.y + Math.sin(northAngle) * northLen;
-        _ctx.beginPath();
-        _ctx.moveTo(o.x, o.y);
-        _ctx.lineTo(nx, ny);
-        _ctx.strokeStyle = '#ff4444';
-        _ctx.lineWidth = 3;
-        _ctx.stroke();
-        _ctx.fillStyle = '#ff4444';
-        _ctx.font = 'bold 14px monospace';
-        _ctx.fillText('N', nx + 5, ny - 5);
+        _ctx.fillStyle = '#ff8888'; _ctx.font = '14px monospace';
+        _ctx.fillText(`ORIGEN (0,${_currentElevation/1000}m,0)`, o.x + 15, o.y - 8);
     }
 
-    // ═══════════════════════════════════════════════════════
-    // DIBUJO DE EQUIPOS MEJORADO
-    // ═══════════════════════════════════════════════════════
-    
     function drawTank(eq) {
         const p = project({ x: eq.posX, y: eq.posY, z: eq.posZ });
         const w = (eq.diametro / 2) * _cam.scale;
         const h = eq.altura * _cam.scale;
         const topY = p.y - h/2;
         const bottomY = p.y + h/2;
-        const specColor = getSpecColor(eq);
 
-        // Sombra del tanque
-        _ctx.save();
-        _ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        _ctx.beginPath();
-        _ctx.ellipse(p.x + 8, bottomY + 8, w, w*0.5, 0, 0, 2*Math.PI);
-        _ctx.fill();
-        _ctx.restore();
-
-        // Cuerpo con gradiente metálico
-        _ctx.beginPath();
-        _ctx.ellipse(p.x, bottomY, w, w*0.5, 0, 0, 2*Math.PI);
+        _ctx.beginPath(); _ctx.ellipse(p.x, bottomY, w, w*0.5, 0, 0, 2*Math.PI);
         const grad = _ctx.createLinearGradient(p.x - w, 0, p.x + w, 0);
-        grad.addColorStop(0, adjustColor(specColor, -40));
-        grad.addColorStop(0.25, adjustColor(specColor, -15));
-        grad.addColorStop(0.5, specColor);
-        grad.addColorStop(0.75, adjustColor(specColor, 15));
-        grad.addColorStop(1, adjustColor(specColor, -30));
-        _ctx.fillStyle = grad;
-        _ctx.fill();
-        _ctx.strokeStyle = '#ffffff44';
-        _ctx.lineWidth = 1.5;
-        _ctx.stroke();
+        grad.addColorStop(0, '#1e40af');
+        grad.addColorStop(0.3, '#3b82f6');
+        grad.addColorStop(0.7, '#60a5fa');
+        grad.addColorStop(1, '#1e40af');
+        _ctx.fillStyle = grad; _ctx.fill(); _ctx.strokeStyle = '#fff'; _ctx.stroke();
 
-        // Pared del tanque
-        _ctx.fillStyle = adjustColor(specColor, -10);
-        _ctx.fillRect(p.x - w, topY, w, h);
-        _ctx.fillStyle = specColor;
-        _ctx.fillRect(p.x, topY, w, h);
-        
-        // Línea de soldadura vertical
-        _ctx.strokeStyle = '#ffffff33';
-        _ctx.lineWidth = 1;
-        _ctx.setLineDash([8, 12]);
-        _ctx.beginPath();
-        _ctx.moveTo(p.x, topY + 10);
-        _ctx.lineTo(p.x, bottomY - 10);
-        _ctx.stroke();
-        _ctx.setLineDash([]);
+        _ctx.fillStyle = '#1e40af'; _ctx.fillRect(p.x - w, topY, w, h);
+        _ctx.fillStyle = '#3b82f6'; _ctx.fillRect(p.x, topY, w, h);
 
-        // Indicador de nivel (si hay líquido)
-        if (eq.nivel && eq.nivel > 0) {
-            const nivelY = bottomY - (eq.nivel / eq.altura) * h;
-            _ctx.fillStyle = 'rgba(0, 242, 255, 0.15)';
-            _ctx.fillRect(p.x - w + 2, nivelY, w - 2, bottomY - nivelY - 2);
-            _ctx.strokeStyle = '#00f2ff';
-            _ctx.lineWidth = 1;
-            _ctx.setLineDash([4, 4]);
-            _ctx.beginPath();
-            _ctx.moveTo(p.x - w + 5, nivelY);
-            _ctx.lineTo(p.x + w - 5, nivelY);
-            _ctx.stroke();
-            _ctx.setLineDash([]);
-        }
+        _ctx.beginPath(); _ctx.ellipse(p.x, topY, w, w*0.5, 0, 0, 2*Math.PI);
+        _ctx.fillStyle = '#60a5fa'; _ctx.fill(); _ctx.stroke();
 
-        // Techo
-        _ctx.beginPath();
-        _ctx.ellipse(p.x, topY, w, w*0.5, 0, 0, 2*Math.PI);
-        _ctx.fillStyle = adjustColor(specColor, 15);
-        _ctx.fill();
-        _ctx.strokeStyle = '#ffffff66';
-        _ctx.stroke();
-
-        // Etiqueta con formato ISA
-        drawEquipmentTag(p.x, topY - 15, eq);
+        drawIsoText(eq.tag, p.x, topY - 10, 'XY');
         drawPuertos(eq);
-    }
-
-    function getSpecColor(eq) {
-        if (eq.spec && typeof SmartFlowCatalog !== 'undefined') {
-            const spec = SmartFlowCatalog.getSpec(eq.spec);
-            if (spec && spec.color) {
-                return '#' + spec.color.toString(16).padStart(6, '0');
-            }
-        }
-        switch(eq.tipo) {
-            case 'tanque_v': case 'torre': case 'reactor': return '#2563eb';
-            case 'tanque_h': return '#1d4ed8';
-            case 'bomba': return '#f39c12';
-            default: return '#475569';
-        }
-    }
-
-    function drawEquipmentTag(x, y, eq) {
-        if (!AnnotationManager.isVisible(2)) return;
-        
-        const tagText = eq.tag || '?';
-        const specText = eq.spec ? `[${eq.spec}]` : '';
-        const diamText = eq.diametro ? `Ø${eq.diametro}mm` : '';
-        
-        _ctx.save();
-        _ctx.font = `bold ${Math.max(11, 13 * _cam.scale)}px 'Segoe UI', monospace`;
-        _ctx.textAlign = 'center';
-        _ctx.textBaseline = 'bottom';
-        _ctx.setTransform(1, 0.5, 0, 1, x, y);
-        
-        const lines = [tagText];
-        if (specText) lines.push(specText);
-        if (diamText && _cam.scale > 0.3) lines.push(diamText);
-        
-        const lineHeight = 16;
-        const totalHeight = lines.length * lineHeight + 12;
-        let maxWidth = 0;
-        lines.forEach(l => { const w = _ctx.measureText(l).width; if (w > maxWidth) maxWidth = w; });
-        const boxW = maxWidth + 16;
-        
-        _ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        _ctx.fillRect(-boxW/2, -totalHeight, boxW, totalHeight);
-        _ctx.strokeStyle = '#f59e0b';
-        _ctx.lineWidth = 1.5;
-        _ctx.strokeRect(-boxW/2, -totalHeight, boxW, totalHeight);
-        
-        _ctx.fillStyle = '#ffffff';
-        lines.forEach((line, i) => {
-            _ctx.fillText(line, 0, -totalHeight + 14 + i * lineHeight);
-        });
-        
-        _ctx.restore();
-        _ctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (eq.accessories) eq.accessories.forEach(acc => drawAccessory(acc, eq));
     }
 
     function drawBomba(eq) {
         const p = project({ x: eq.posX, y: eq.posY, z: eq.posZ });
-        const rad = 18 * _cam.scale;
-        const specColor = getSpecColor(eq);
-        
-        // Sombra
-        _ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        _ctx.beginPath();
-        _ctx.arc(p.x + 4, p.y + 4, rad, 0, 2*Math.PI);
-        _ctx.fill();
-        
-        // Cuerpo
+        const rad = 16 * _cam.scale;
         const grad = _ctx.createRadialGradient(p.x-3, p.y-3, 2, p.x, p.y, rad);
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.3, specColor);
-        grad.addColorStop(0.7, adjustColor(specColor, -20));
-        grad.addColorStop(1, '#1a1a1a');
-        _ctx.fillStyle = grad;
-        _ctx.beginPath();
-        _ctx.arc(p.x, p.y, rad, 0, 2*Math.PI);
-        _ctx.fill();
-        _ctx.strokeStyle = '#ffffff66';
-        _ctx.lineWidth = 2;
-        _ctx.stroke();
-        
-        // Eje del motor
-        _ctx.beginPath();
-        _ctx.moveTo(p.x - rad, p.y);
-        _ctx.lineTo(p.x + rad, p.y);
-        _ctx.strokeStyle = '#ffffff88';
-        _ctx.lineWidth = 2;
-        _ctx.stroke();
-        
-        // Flecha de rotación
-        const arrowAngle = Date.now() * 0.001 % (Math.PI * 2);
-        _ctx.beginPath();
-        _ctx.arc(p.x, p.y, rad * 0.6, arrowAngle, arrowAngle + Math.PI/3);
-        _ctx.strokeStyle = '#fbbf24';
-        _ctx.lineWidth = 2;
-        _ctx.setLineDash([4, 3]);
-        _ctx.stroke();
-        _ctx.setLineDash([]);
-        
-        drawEquipmentTag(p.x, p.y - rad - 15, eq);
+        grad.addColorStop(0, '#f39c12'); grad.addColorStop(1, '#b85c00');
+        _ctx.fillStyle = grad; _ctx.beginPath(); _ctx.arc(p.x, p.y, rad, 0, 2*Math.PI); _ctx.fill(); _ctx.strokeStyle = '#fff'; _ctx.stroke();
+        _ctx.beginPath(); _ctx.moveTo(p.x-rad, p.y); _ctx.lineTo(p.x+rad, p.y); _ctx.stroke();
+        drawIsoText(eq.tag, p.x + 20, p.y - 5, 'XY');
         drawPuertos(eq);
     }
 
     function drawColector(eq) {
         const pIzq = project({ x: eq.posX, y: eq.posY, z: eq.posZ });
         const pDer = project({ x: eq.posX + eq.largo, y: eq.posY, z: eq.posZ });
-        const specColor = getSpecColor(eq);
-        const diam = Math.max(4, (eq.diametro || 4) * _cam.scale * 1.5);
-        
-        // Sombra
-        _ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-        _ctx.lineWidth = diam + 6;
-        _ctx.beginPath();
-        _ctx.moveTo(pIzq.x + 4, pIzq.y + 4);
-        _ctx.lineTo(pDer.x + 4, pDer.y + 4);
-        _ctx.stroke();
-        
-        // Cuerpo con gradiente
-        const grad = _ctx.createLinearGradient(pIzq.x, pIzq.y, pDer.x, pDer.y);
-        grad.addColorStop(0, adjustColor(specColor, -20));
-        grad.addColorStop(0.3, specColor);
-        grad.addColorStop(0.5, '#ffffffcc');
-        grad.addColorStop(0.7, specColor);
-        grad.addColorStop(1, adjustColor(specColor, -10));
-        _ctx.strokeStyle = grad;
-        _ctx.lineWidth = diam;
-        _ctx.lineCap = 'round';
-        _ctx.beginPath();
-        _ctx.moveTo(pIzq.x, pIzq.y);
-        _ctx.lineTo(pDer.x, pDer.y);
-        _ctx.stroke();
-        
-        // Brillo
-        _ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-        _ctx.lineWidth = diam * 0.3;
-        _ctx.beginPath();
-        _ctx.moveTo(pIzq.x, pIzq.y - diam * 0.2);
-        _ctx.lineTo(pDer.x, pDer.y - diam * 0.2);
-        _ctx.stroke();
-        
-        drawEquipmentTag((pIzq.x + pDer.x)/2, pIzq.y - diam - 10, eq);
+        _ctx.beginPath(); _ctx.moveTo(pIzq.x, pIzq.y); _ctx.lineTo(pDer.x, pDer.y);
+        _ctx.strokeStyle = '#facc15'; _ctx.lineWidth = Math.max(4, (eq.diametro || 4) * _cam.scale); _ctx.stroke();
+        drawIsoText(eq.tag, (pIzq.x + pDer.x)/2, pIzq.y - 15, 'ZY');
         drawPuertos(eq);
     }
 
@@ -509,39 +246,9 @@ const SmartFlowRenderer = (function() {
         const p = project({ x: eq.posX, y: eq.posY, z: eq.posZ });
         const w = (eq.largo || eq.diametro || 1000) * _cam.scale / 2;
         const h = (eq.altura || 1000) * _cam.scale / 2;
-        const specColor = color || getSpecColor(eq);
-        
-        // Sombra
-        _ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        _ctx.fillRect(p.x - w + 5, p.y - h + 5, w*2, h*2);
-        
-        // Cuerpo con gradiente
-        const grad = _ctx.createLinearGradient(p.x - w, p.y - h, p.x + w, p.y + h);
-        grad.addColorStop(0, adjustColor(specColor, -30));
-        grad.addColorStop(0.4, specColor);
-        grad.addColorStop(0.6, adjustColor(specColor, 15));
-        grad.addColorStop(1, adjustColor(specColor, -20));
-        _ctx.fillStyle = grad;
-        _ctx.fillRect(p.x - w, p.y - h, w*2, h*2);
-        
-        // Borde
-        _ctx.strokeStyle = '#ffffff66';
-        _ctx.lineWidth = 2;
-        _ctx.strokeRect(p.x - w, p.y - h, w*2, h*2);
-        
-        // Líneas de panel (detalle de fabricación)
-        if (_cam.scale > 0.2) {
-            _ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-            _ctx.lineWidth = 0.5;
-            for (let px = p.x - w + 100; px < p.x + w; px += 300) {
-                _ctx.beginPath();
-                _ctx.moveTo(px, p.y - h);
-                _ctx.lineTo(px, p.y + h);
-                _ctx.stroke();
-            }
-        }
-        
-        drawEquipmentTag(p.x, p.y - h - 10, eq);
+        _ctx.fillStyle = color; _ctx.fillRect(p.x-w, p.y-h, w*2, h*2);
+        _ctx.strokeStyle = 'white'; _ctx.strokeRect(p.x-w, p.y-h, w*2, h*2);
+        drawIsoText(eq.tag, p.x, p.y - h - 5, 'XY');
         drawPuertos(eq);
     }
 
@@ -549,39 +256,10 @@ const SmartFlowRenderer = (function() {
         const p = project({ x: eq.posX, y: eq.posY, z: eq.posZ });
         const w = (eq.largo || eq.diametro) * _cam.scale / 2;
         const h = (eq.diametro / 2) * _cam.scale;
-        const specColor = color || getSpecColor(eq);
-        
-        // Sombra
-        _ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        _ctx.fillRect(p.x - w + 4, p.y - h + 4, w*2, h*2);
-        
-        // Cuerpo
-        const grad = _ctx.createLinearGradient(p.x - w, p.y, p.x + w, p.y);
-        grad.addColorStop(0, adjustColor(specColor, -30));
-        grad.addColorStop(0.3, specColor);
-        grad.addColorStop(0.5, '#ffffffcc');
-        grad.addColorStop(0.7, specColor);
-        grad.addColorStop(1, adjustColor(specColor, -15));
-        _ctx.fillStyle = grad;
-        _ctx.fillRect(p.x - w, p.y - h, w*2, h*2);
-        _ctx.strokeStyle = '#ffffff66';
-        _ctx.lineWidth = 1.5;
-        _ctx.strokeRect(p.x - w, p.y - h, w*2, h*2);
-        
-        // Cabezales
-        _ctx.beginPath();
-        _ctx.ellipse(p.x - w, p.y, h, h*0.5, 0, 0, 2*Math.PI);
-        _ctx.fillStyle = adjustColor(specColor, -15);
-        _ctx.fill();
-        _ctx.stroke();
-        
-        _ctx.beginPath();
-        _ctx.ellipse(p.x + w, p.y, h, h*0.5, 0, 0, 2*Math.PI);
-        _ctx.fillStyle = adjustColor(specColor, 15);
-        _ctx.fill();
-        _ctx.stroke();
-        
-        drawEquipmentTag(p.x, p.y - h - 10, eq);
+        _ctx.fillStyle = color; _ctx.fillRect(p.x-w, p.y-h, w*2, h*2); _ctx.strokeStyle = 'white'; _ctx.strokeRect(p.x-w, p.y-h, w*2, h*2);
+        _ctx.beginPath(); _ctx.ellipse(p.x-w, p.y, h, h*0.5, 0, 0, 2*Math.PI); _ctx.fillStyle = color; _ctx.fill(); _ctx.stroke();
+        _ctx.beginPath(); _ctx.ellipse(p.x+w, p.y, h, h*0.5, 0, 0, 2*Math.PI); _ctx.fillStyle = color; _ctx.fill(); _ctx.stroke();
+        drawIsoText(eq.tag, p.x, p.y - h - 5, 'XY');
         drawPuertos(eq);
     }
 
@@ -593,21 +271,22 @@ const SmartFlowRenderer = (function() {
         const material = (eq.material || '').toUpperCase();
         const esConcreto = material.includes('CONCRETO') || material.includes('CEMENTO');
         const esAcero = material.includes('ACERO') || material.includes('STEEL') || material.includes('METAL');
+        const colorBorde = esConcreto ? '#6b7280' : '#4b5563';
+        const colorBaranda = esConcreto ? '#d1d5db' : '#9ca3af';
+
         const topY = p.y - h;
 
-        // Sombra
-        _ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        _ctx.fillStyle = 'rgba(0,0,0,0.15)';
         _ctx.beginPath();
-        _ctx.moveTo(p.x - w + 4, topY + 4);
-        _ctx.lineTo(p.x - w + d * 0.5 + 4, topY - d * 0.25 + 4);
-        _ctx.lineTo(p.x + d * 0.5 + 4, topY - d * 0.25 + 4);
-        _ctx.lineTo(p.x + w + 4, topY + 4);
-        _ctx.lineTo(p.x + d * 0.5 + 4, topY + d * 0.25 + 4);
-        _ctx.lineTo(p.x - w + d * 0.5 + 4, topY + d * 0.25 + 4);
+        _ctx.moveTo(p.x - w + 2, topY + 2);
+        _ctx.lineTo(p.x - w + d * 0.5 + 2, topY - d * 0.25 + 2);
+        _ctx.lineTo(p.x + d * 0.5 + 2, topY - d * 0.25 + 2);
+        _ctx.lineTo(p.x + w + 2, topY + 2);
+        _ctx.lineTo(p.x + d * 0.5 + 2, topY + d * 0.25 + 2);
+        _ctx.lineTo(p.x - w + d * 0.5 + 2, topY + d * 0.25 + 2);
         _ctx.closePath();
         _ctx.fill();
 
-        // Plancha con textura de rejilla
         if (esAcero) {
             const grad = _ctx.createLinearGradient(p.x - w, topY, p.x + w, topY);
             grad.addColorStop(0, '#4b5563');
@@ -619,9 +298,8 @@ const SmartFlowRenderer = (function() {
         } else {
             _ctx.fillStyle = esConcreto ? '#9ca3af' : '#6b7280';
         }
-        
-        _ctx.strokeStyle = esConcreto ? '#6b7280' : '#4b5563';
-        _ctx.lineWidth = 2;
+        _ctx.strokeStyle = colorBorde;
+        _ctx.lineWidth = 1.5;
         _ctx.beginPath();
         _ctx.moveTo(p.x - w, topY);
         _ctx.lineTo(p.x - w + d * 0.5, topY - d * 0.25);
@@ -633,11 +311,10 @@ const SmartFlowRenderer = (function() {
         _ctx.fill();
         _ctx.stroke();
 
-        // Textura de rejilla (patrón de rombos)
         if (esAcero && _cam.scale > 0.15) {
             _ctx.strokeStyle = '#374151';
             _ctx.lineWidth = 0.5;
-            const panelSize = 400 * _cam.scale;
+            const panelSize = 2000 * _cam.scale;
             const largoTotal = w * 2;
             const panelesX = Math.floor(largoTotal / panelSize);
             for (let i = 1; i < panelesX; i++) {
@@ -653,7 +330,8 @@ const SmartFlowRenderer = (function() {
             }
         }
 
-        // Columnas con detalle
+        _ctx.strokeStyle = colorBorde;
+        _ctx.lineWidth = 1.5;
         const patas = [
             { x: eq.posX - (eq.largo || 6000) / 2, z: eq.posZ - (eq.ancho || 3000) / 2 },
             { x: eq.posX + (eq.largo || 6000) / 2, z: eq.posZ - (eq.ancho || 3000) / 2 },
@@ -663,52 +341,32 @@ const SmartFlowRenderer = (function() {
         patas.forEach(pta => {
             const top = project({ x: pta.x, y: eq.posY - (eq.altura || 400), z: pta.z });
             const bot = project({ x: pta.x, y: eq.posY, z: pta.z });
-            
-            // Sombra de columna
-            _ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            _ctx.lineWidth = 8;
-            _ctx.beginPath();
-            _ctx.moveTo(top.x + 3, top.y + 3);
-            _ctx.lineTo(bot.x + 3, bot.y + 3);
-            _ctx.stroke();
-            
-            // Columna
-            _ctx.strokeStyle = esAcero ? '#6b7280' : '#9ca3af';
-            _ctx.lineWidth = 5;
             _ctx.beginPath();
             _ctx.moveTo(top.x, top.y);
             _ctx.lineTo(bot.x, bot.y);
             _ctx.stroke();
-            
-            // Placa base
-            const baseW = 20 * _cam.scale;
-            _ctx.fillStyle = '#555555';
-            _ctx.fillRect(bot.x - baseW, bot.y - 3, baseW * 2, 6);
         });
 
-        // Barandas
         if (eq.baranda) {
-            _ctx.strokeStyle = '#fbbf24';
-            _ctx.lineWidth = 1.5;
+            _ctx.strokeStyle = colorBaranda;
+            _ctx.lineWidth = 0.8;
             const esquinas = [
                 { x: eq.posX - (eq.largo || 6000) / 2, z: eq.posZ - (eq.ancho || 3000) / 2 },
                 { x: eq.posX + (eq.largo || 6000) / 2, z: eq.posZ - (eq.ancho || 3000) / 2 },
                 { x: eq.posX + (eq.largo || 6000) / 2, z: eq.posZ + (eq.ancho || 3000) / 2 },
                 { x: eq.posX - (eq.largo || 6000) / 2, z: eq.posZ + (eq.ancho || 3000) / 2 }
             ];
-            const barandaH = 1100;
             for (let i = 0; i < esquinas.length; i++) {
                 const a = esquinas[i];
                 const b = esquinas[(i + 1) % esquinas.length];
-                const projATop = project({ x: a.x, y: eq.posY - (eq.altura || 400) - barandaH, z: a.z });
-                const projBTop = project({ x: b.x, y: eq.posY - (eq.altura || 400) - barandaH, z: b.z });
+                const projA = project({ x: a.x, y: eq.posY - (eq.altura || 400), z: a.z });
+                const projB = project({ x: b.x, y: eq.posY - (eq.altura || 400), z: b.z });
+                const projATop = project({ x: a.x, y: eq.posY - (eq.altura || 400) - 200, z: a.z });
+                const projBTop = project({ x: b.x, y: eq.posY - (eq.altura || 400) - 200, z: b.z });
                 _ctx.beginPath();
                 _ctx.moveTo(projATop.x, projATop.y);
                 _ctx.lineTo(projBTop.x, projBTop.y);
                 _ctx.stroke();
-                
-                // Postes verticales
-                const projA = project({ x: a.x, y: eq.posY - (eq.altura || 400), z: a.z });
                 _ctx.beginPath();
                 _ctx.moveTo(projA.x, projA.y);
                 _ctx.lineTo(projATop.x, projATop.y);
@@ -716,25 +374,181 @@ const SmartFlowRenderer = (function() {
             }
         }
 
-        drawEquipmentTag(p.x, topY - 35, eq);
+        drawIsoText(eq.tag, p.x, topY - 25, 'XY');
     }
 
-    // ═══════════════════════════════════════════════════════
-    // TUBERÍAS MEJORADAS CON SCHEDULE Y DETALLES
-    // ═══════════════════════════════════════════════════════
-    
+    function drawAccessory(acc, parentEq) {
+        const pos = { x: parentEq.posX + (acc.relX || 0), y: parentEq.posY + (acc.relY || 0), z: parentEq.posZ + (acc.relZ || 0) };
+        const proj = project(pos);
+        _ctx.strokeStyle = '#64748b'; _ctx.lineWidth = 1; _ctx.setLineDash([4, 4]);
+        _ctx.beginPath();
+        if (acc.type === 'CAGED_LADDER') { _ctx.moveTo(proj.x, proj.y); _ctx.lineTo(proj.x, proj.y - 40 * _cam.scale); }
+        _ctx.stroke(); _ctx.setLineDash([]);
+    }
+
+    function drawPuertos(obj) {
+        if (!obj.puertos) return;
+        const posBase = obj.posX !== undefined ? { x: obj.posX, y: obj.posY, z: obj.posZ } : (obj._cachedPoints && obj._cachedPoints.length > 0 ? obj._cachedPoints[0] : { x: 0, y: 0, z: 0 });
+        obj.puertos.forEach(nz => {
+            const pos = { x: posBase.x + (nz.relX || nz.relPos?.x || 0), y: posBase.y + (nz.relY || nz.relPos?.y || 0), z: posBase.z + (nz.relZ || nz.relPos?.z || 0) };
+            const proj = project(pos);
+            if (nz.orientacion) {
+                const dir = nz.orientacion;
+                const endPos = { x: pos.x + dir.dx * 250, y: pos.y + dir.dy * 250, z: pos.z + dir.dz * 250 };
+                const projEnd = project(endPos);
+                _ctx.beginPath(); _ctx.moveTo(proj.x, proj.y); _ctx.lineTo(projEnd.x, projEnd.y);
+                _ctx.strokeStyle = '#ffaa00'; _ctx.lineWidth = 2; _ctx.stroke();
+                const angle = Math.atan2(projEnd.y - proj.y, projEnd.x - proj.x);
+                const arrowSize = 8;
+                _ctx.beginPath();
+                _ctx.moveTo(projEnd.x, projEnd.y);
+                _ctx.lineTo(projEnd.x - arrowSize * Math.cos(angle - 0.5), projEnd.y - arrowSize * Math.sin(angle - 0.5));
+                _ctx.lineTo(projEnd.x - arrowSize * Math.cos(angle + 0.5), projEnd.y - arrowSize * Math.sin(angle + 0.5));
+                _ctx.closePath(); _ctx.fillStyle = '#ffaa00'; _ctx.fill();
+            }
+            _ctx.beginPath(); _ctx.arc(proj.x, proj.y, 6, 0, 2*Math.PI);
+            _ctx.fillStyle = nz.connectedLine ? '#4ade80' : '#ff8800'; _ctx.fill();
+            _ctx.strokeStyle = '#fff'; _ctx.lineWidth = 1; _ctx.stroke();
+            drawIsoText(`${nz.id} ${nz.diametro || obj.diameter || 3}"`, proj.x - 12, proj.y - 6, 'XY');
+        });
+    }
+
+    function drawNozzleTag(proj2D, nozzle, parentEq) {
+        if (!AnnotationManager.isVisible(2)) return;
+        const diam = nozzle.diametro || parentEq.diametro || '?';
+        const elevation = nozzle.elevation || (parentEq.posY + (nozzle.relY || 0));
+        const label = `${nozzle.id} ${diam}" – EL ${elevation}`;
+        const plane = (nozzle.orientacion && Math.abs(nozzle.orientacion.dx) > Math.abs(nozzle.orientacion.dz)) ? 'LEFT' : 'RIGHT';
+        const prefX = proj2D.x + 35;
+        const prefY = proj2D.y - 25;
+        const box = AnnotationManager.register({ x: prefX, y: prefY - 10, w: 110, h: 22 }, 2);
+
+        _ctx.save();
+        _ctx.setTransform(1, 0, 0, 1, 0, 0);
+        _ctx.strokeStyle = '#f59e0b';
+        _ctx.lineWidth = 1;
+        _ctx.beginPath();
+        _ctx.moveTo(proj2D.x, proj2D.y);
+        _ctx.lineTo(box.x, box.y + 11);
+        _ctx.stroke();
+        _ctx.restore();
+
+        _ctx.save();
+        if (plane === 'LEFT') _ctx.setTransform(1, 0.5, 0, 1, box.x, box.y + 11);
+        else _ctx.setTransform(1, -0.5, 0, 1, box.x, box.y + 11);
+        _ctx.font = 'bold 10px "Courier New", monospace';
+        _ctx.fillStyle = '#ffffff';
+        _ctx.textAlign = 'left';
+        _ctx.textBaseline = 'middle';
+        _ctx.fillText(label, 0, 0);
+        _ctx.restore();
+        _ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    function drawIsoText(text, x, y, plane = 'XY') {
+        if (!text) return;
+        _ctx.save();
+        _ctx.font = `bold ${Math.max(12, 14 * _cam.scale)}px 'Segoe UI', monospace`;
+        _ctx.textAlign = 'center'; _ctx.textBaseline = 'bottom';
+        if (plane === 'XY') { _ctx.setTransform(1, 0.5, 0, 1, x, y); }
+        else if (plane === 'ZY') { _ctx.setTransform(1, -0.5, 0, 1, x, y); }
+        else { _ctx.setTransform(1, -0.5, 1, 0.5, x, y); }
+        const tw = _ctx.measureText(text).width;
+        _ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+        _ctx.fillRect(-tw/2 - 6, -16, tw + 12, 20);
+        _ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)'; _ctx.lineWidth = 1;
+        _ctx.strokeRect(-tw/2 - 6, -16, tw + 12, 20);
+        if (_cam.scale < 0.3) { _ctx.globalAlpha = 0.12; }
+        else if (_cam.scale < 0.7) { _ctx.globalAlpha = 0.18 + (_cam.scale - 0.3) * 1.3; }
+        else { _ctx.globalAlpha = 0.65; }
+        _ctx.fillStyle = '#ffffff';
+        _ctx.fillText(text, 0, 0);
+        _ctx.globalAlpha = 1.0;
+        _ctx.restore(); _ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    function drawFlowArrow(p1, p2, diameter) {
+        if (!p1 || !p2) return;
+        const proj1 = project(p1), proj2 = project(p2);
+        const angle = Math.atan2(proj2.y - proj1.y, proj2.x - proj1.x);
+        const midX = (proj1.x + proj2.x) / 2, midY = (proj1.y + proj2.y) / 2;
+        _ctx.save(); _ctx.translate(midX, midY); _ctx.rotate(angle);
+        const arrowSize = 12 * _cam.scale;
+        _ctx.beginPath();
+        _ctx.moveTo(-arrowSize, -arrowSize/2); _ctx.lineTo(0, 0); _ctx.lineTo(-arrowSize, arrowSize/2);
+        _ctx.fillStyle = '#00f2ff'; _ctx.shadowColor = '#00f2ff'; _ctx.shadowBlur = 8;
+        _ctx.fill(); _ctx.shadowBlur = 0; _ctx.restore();
+    }
+
+    function getPointAtDistance(from, to, dist) { 
+        const d = Math.hypot(to.x-from.x, to.y-from.y, to.z-from.z); 
+        if (d === 0) return { ...from };
+        const t = Math.min(dist/d, 0.5); 
+        return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, z: from.z + (to.z - from.z) * t }; 
+    }
+
+    function getSegmentDirection3D(p1, p2) {
+        const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
+        const absX = Math.abs(dx), absY = Math.abs(dy), absZ = Math.abs(dz);
+        if (absY > absX && absY > absZ) return 'Y';
+        return absX >= absZ ? 'X' : 'Z';
+    }
+
+    function getPipeOrientation(p1, p2) {
+        const dx = Math.abs(p2.x - p1.x), dy = Math.abs(p2.y - p1.y), dz = Math.abs(p2.z - p1.z);
+        return (dy > dx && dy > dz) ? 'vertical' : 'horizontal';
+    }
+
+    function isPointCollidingWithEquipment(point, margin = 1500) {
+        if (!_core) return false;
+        const db = _core.getDb(); if (!db || !db.equipos) return false;
+        return db.equipos.some(eq => {
+            if (eq.tipo === 'tanque_v' || eq.tipo === 'torre' || eq.tipo === 'reactor') {
+                const dx = Math.abs(point.x - eq.posX), dz = Math.abs(point.z - eq.posZ);
+                const radius = (eq.diametro / 2) + margin;
+                return (dx <= radius && dz <= radius);
+            } else if (eq.tipo === 'tanque_h') {
+                const halfL = (eq.largo / 2) + margin, halfD = (eq.diametro / 2) + margin;
+                const dx = Math.abs(point.x - eq.posX), dz = Math.abs(point.z - eq.posZ);
+                return (dx <= halfL && dz <= halfD);
+            } else {
+                const halfL = ((eq.largo || 1000) / 2) + margin, halfW = ((eq.ancho || eq.diametro || 1000) / 2) + margin;
+                const dx = Math.abs(point.x - eq.posX), dz = Math.abs(point.z - eq.posZ);
+                return (dx <= halfL && dz <= halfW);
+            }
+        });
+    }
+
+    function lineHasAuditError(line) {
+        if (!_core) return false;
+        const db = _core.getDb();
+        if (line.origin && line.origin.objTag) {
+            const obj = _core.findObjectByTag(line.origin.objTag);
+            const nz = obj?.puertos?.find(p => p.id === line.origin.portId);
+            if (nz && nz.diametro !== line.diameter) return true;
+        }
+        if (line.destination && line.destination.objTag) {
+            const obj = _core.findObjectByTag(line.destination.objTag);
+            const nz = obj?.puertos?.find(p => p.id === line.destination.portId);
+            if (nz && nz.diametro !== line.diameter) return true;
+        }
+        return false;
+    }
+
     function drawPipeWithElbows(line) {
         const originalPts = _core ? _core.getLinePoints(line) : (line._cachedPoints || line.points3D);
         if (!originalPts || originalPts.length < 2) return;
-        const pts = originalPts.map((p, idx) => ({ ...p }));
-        
+        const pts = originalPts.map((p, idx) => {
+            if (idx === 0 || idx === originalPts.length - 1) return { ...p };
+            return p;
+        });
         if (line.origin && _core) {
             const obj = _core.findObjectByTag(line.origin.objTag);
             if (obj) {
                 const puerto = obj.puertos?.find(p => p.id === line.origin.portId);
                 if (puerto) {
                     const posBase = obj.posX !== undefined ? { x: obj.posX, y: obj.posY, z: obj.posZ } : (obj._cachedPoints?.[0] || { x: 0, y: 0, z: 0 });
-                    pts[0] = { x: posBase.x + (puerto.relX || 0), y: posBase.y + (puerto.relY || 0), z: posBase.z + (puerto.relZ || 0) };
+                    pts[0] = { x: posBase.x + (puerto.relX || puerto.relPos?.x || 0), y: posBase.y + (puerto.relY || puerto.relPos?.y || 0), z: posBase.z + (puerto.relZ || puerto.relPos?.z || 0) };
                 }
             }
         }
@@ -744,17 +558,16 @@ const SmartFlowRenderer = (function() {
                 const puerto = obj.puertos?.find(p => p.id === line.destination.portId);
                 if (puerto) {
                     const posBase = obj.posX !== undefined ? { x: obj.posX, y: obj.posY, z: obj.posZ } : (obj._cachedPoints?.[0] || { x: 0, y: 0, z: 0 });
-                    pts[pts.length - 1] = { x: posBase.x + (puerto.relX || 0), y: posBase.y + (puerto.relY || 0), z: posBase.z + (puerto.relZ || 0) };
+                    pts[pts.length - 1] = { x: posBase.x + (puerto.relX || puerto.relPos?.x || 0), y: posBase.y + (puerto.relY || puerto.relPos?.y || 0), z: posBase.z + (puerto.relZ || puerto.relPos?.z || 0) };
                 }
             }
         }
 
         const isPPR = line.material === 'PPR' || (line.spec && line.spec.includes('PPR'));
-        const scheduleFactor = getScheduleFactor(line.spec);
-        const radioBase = isPPR ? (line.diameter * 25.4 * 0.8) : (line.diameter * 25.4 * 1.5 * scheduleFactor);
+        const radioBase = isPPR ? (line.diameter * 25.4 * 0.8) : (line.diameter * 25.4 * 1.5);
         const radio = Math.min(radioBase, 350);
-        const baseWidth = (line.diameter || 4) * _cam.scale * scheduleFactor;
-        const mainWidth = Math.max(5, baseWidth);
+        const baseWidth = (line.diameter || 4) * _cam.scale;
+        const mainWidth = Math.max(6, baseWidth);
         _ctx.lineCap = 'round'; _ctx.lineJoin = 'round';
         const hasAuditError = lineHasAuditError(line);
         const matShort = getShortMaterial(line.material);
@@ -779,64 +592,17 @@ const SmartFlowRenderer = (function() {
 
         const grad = getMaterialGradient(_ctx, pts[0], pts[pts.length-1], matShort, mainWidth*2);
 
-        // Sombra
         _ctx.save(); drawPath();
         _ctx.shadowColor = '#00000066'; _ctx.shadowBlur = 14 * _cam.scale;
         _ctx.shadowOffsetX = 0; _ctx.shadowOffsetY = 8 * _cam.scale;
-        _ctx.strokeStyle = '#00000044'; _ctx.lineWidth = mainWidth + 12; _ctx.stroke(); _ctx.restore();
+        _ctx.strokeStyle = '#00000044'; _ctx.lineWidth = mainWidth + 10; _ctx.stroke(); _ctx.restore();
 
-        // Capas de la tubería
-        drawPath(); _ctx.strokeStyle = '#0a0e17'; _ctx.lineWidth = mainWidth + 6; _ctx.stroke();
-        drawPath(); _ctx.strokeStyle = '#1e293b'; _ctx.lineWidth = mainWidth + 3; _ctx.stroke();
+        drawPath(); _ctx.strokeStyle = '#0a0e17'; _ctx.lineWidth = mainWidth + 4; _ctx.stroke();
+        drawPath(); _ctx.strokeStyle = '#1e293b'; _ctx.lineWidth = mainWidth + 2; _ctx.stroke();
         drawPath(); _ctx.strokeStyle = grad; _ctx.lineWidth = mainWidth; _ctx.stroke();
-        
-        // Brillo especular
         drawPath(); _ctx.strokeStyle = 'rgba(255,255,255,0.25)'; _ctx.lineWidth = mainWidth * 0.45; _ctx.stroke();
         drawPath(); _ctx.strokeStyle = '#ffffff'; _ctx.lineWidth = Math.max(1.2, mainWidth * 0.12); _ctx.globalAlpha = 0.85; _ctx.stroke(); _ctx.globalAlpha = 1.0;
 
-        // Aislamiento térmico (si aplica)
-        if (line.insulation) {
-            drawPath();
-            const insulColor = ISO_CONFIG.INSULATION_COLORS[line.insulation] || '#ffaa00';
-            _ctx.strokeStyle = insulColor;
-            _ctx.lineWidth = mainWidth + 8;
-            _ctx.globalAlpha = 0.2;
-            _ctx.setLineDash([10, 5]);
-            _ctx.stroke();
-            _ctx.setLineDash([]);
-            _ctx.globalAlpha = 1.0;
-        }
-
-        // Soldaduras en tubería metálica (cada 6m)
-        if (!isPPR && _cam.scale > 0.15) {
-            let accumDist = 0;
-            for (let i = 0; i < pts.length - 1; i++) {
-                const segLen = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y, pts[i+1].z - pts[i].z);
-                while (accumDist + segLen > 6000) {
-                    const t = (6000 - accumDist) / segLen;
-                    if (t > 0.05 && t < 0.95) {
-                        const weldPos = {
-                            x: pts[i].x + (pts[i+1].x - pts[i].x) * t,
-                            y: pts[i].y + (pts[i+1].y - pts[i].y) * t,
-                            z: pts[i].z + (pts[i+1].z - pts[i].z) * t
-                        };
-                        const projWeld = project(weldPos);
-                        _ctx.fillStyle = '#fbbf24';
-                        _ctx.beginPath();
-                        _ctx.arc(projWeld.x, projWeld.y, mainWidth * 0.6, 0, Math.PI * 2);
-                        _ctx.fill();
-                        _ctx.fillStyle = '#ffffff';
-                        _ctx.font = `${Math.max(6, mainWidth * 0.4)}px monospace`;
-                        _ctx.textAlign = 'center';
-                        _ctx.fillText('W', projWeld.x, projWeld.y + 3);
-                    }
-                    accumDist -= 6000;
-                }
-                accumDist += segLen;
-            }
-        }
-
-        // Componentes en línea
         if (isPPR && line.components && line.components.length > 0) {
             line.components.forEach(comp => {
                 try {
@@ -855,7 +621,6 @@ const SmartFlowRenderer = (function() {
             });
         }
 
-        // Alerta de auditoría
         if (hasAuditError && pts.length >= 2) {
             const midIndex = Math.floor(pts.length / 2);
             const alertPt = pts[midIndex];
@@ -866,203 +631,35 @@ const SmartFlowRenderer = (function() {
             _ctx.fillText('⚠', 0, 0); _ctx.shadowBlur = 0; _ctx.restore();
         }
 
-        // Cotas (dimensiones)
-        if (line.showDimensions !== false && !isSelected(line) && AnnotationManager.isVisible(1)) {
+        const isSelected = _core && _core.getSelected() && _core.getSelected().obj === line;
+        if (line.showDimensions !== false && !isSelected && AnnotationManager.isVisible(1)) {
             const puntosReales = pts.filter(p => !p.isControlPoint);
             for (let i = 0; i < puntosReales.length - 1; i++) {
                 const p1 = puntosReales[i], p2 = puntosReales[i+1];
-                if (Math.hypot(p2.x-p1.x, p2.y-p1.y, p2.z-p1.z) > 100) {
-                    drawIsometricDimension(p1, p2, 1200);
-                }
+                if (Math.hypot(p2.x-p1.x, p2.y-p1.y, p2.z-p1.z) > 100) drawIsometricDimension(p1, p2, 1200);
             }
         }
 
-        // Flecha de flujo
         if (pts.length >= 2) drawFlowArrow(pts[0], pts[pts.length-1], line.diameter);
-        
-        // Etiqueta de línea con formato ingenieril
         if (lineLabel && pts.length >= 2 && AnnotationManager.isVisible(3)) {
-            const midPt = getPointAtDistance(pts[0], pts[pts.length-1], 
-                Math.hypot(pts[pts.length-1].x-pts[0].x, pts[pts.length-1].y-pts[0].y, pts[pts.length-1].z-pts[0].z)/2);
+            const midPt = getPointAtDistance(pts[0], pts[pts.length-1], Math.hypot(pts[pts.length-1].x-pts[0].x, pts[pts.length-1].y-pts[0].y, pts[pts.length-1].z-pts[0].z)/2);
             const projMid = project(midPt);
             const plane = Math.abs(pts[1].x-pts[0].x) > Math.abs(pts[1].z-pts[0].z) ? 'XY' : 'ZY';
-            
-            _ctx.save();
-            _ctx.font = `bold ${Math.max(9, 11*_cam.scale)}px monospace`;
-            _ctx.textAlign = 'center';
-            _ctx.textBaseline = 'bottom';
-            if (plane === 'XY') _ctx.setTransform(1, 0.5, 0, 1, projMid.x, projMid.y - 20*_cam.scale);
-            else _ctx.setTransform(1, -0.5, 0, 1, projMid.x, projMid.y - 20*_cam.scale);
-            
-            const fullLabel = `${line.diameter}" ${matShort} ${line.spec || ''}`;
-            const tw = _ctx.measureText(fullLabel).width;
-            _ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-            _ctx.fillRect(-tw/2 - 6, -12, tw + 12, 20);
-            _ctx.strokeStyle = '#00f2ff66';
-            _ctx.strokeRect(-tw/2 - 6, -12, tw + 12, 20);
-            _ctx.fillStyle = '#00f2ff';
-            _ctx.fillText(fullLabel, 0, 0);
-            _ctx.restore();
-            _ctx.setTransform(1, 0, 0, 1, 0, 0);
+            drawIsoText(lineLabel, projMid.x, projMid.y - 25*_cam.scale, plane);
         }
-        
         if (line.puertos) drawPuertos(line);
-    }
-
-    function isSelected(line) {
-        return _core && _core.getSelected() && _core.getSelected().obj === line;
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // COTAS Y DIMENSIONES MEJORADAS (ISO 129)
-    // ═══════════════════════════════════════════════════════
-    
-    function drawIsometricDimension(p1, p2, offset = 1200) {
-        const realDist = Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
-        if (realDist < 50) return;
-        const dynamicOffset = Math.max(600, Math.min(3000, realDist * 0.4));
-        const finalOffset = offset || dynamicOffset;
-        const orientation = getPipeOrientation(p1, p2);
-        
-        let candA, candB;
-        if (orientation === 'horizontal') { 
-            candA = { dx: 0, dy: -finalOffset, dz: 0 }; 
-            candB = { dx: 0, dy: finalOffset, dz: 0 }; 
-        } else { 
-            candA = { dx: finalOffset, dy: 0, dz: 0 }; 
-            candB = { dx: -finalOffset, dy: 0, dz: 0 }; 
-        }
-        
-        const checkCollision = (offsetV) => {
-            const midPoint = { x: (p1.x+p2.x)/2+offsetV.dx, y: (p1.y+p2.y)/2+offsetV.dy, z: (p1.z+p2.z)/2+offsetV.dz };
-            return isPointCollidingWithEquipment(midPoint, 1200);
-        };
-        
-        const finalOffsetVec = checkCollision(candA) ? candB : candA;
-        const dp1 = { x: p1.x+finalOffsetVec.dx, y: p1.y+finalOffsetVec.dy, z: p1.z+finalOffsetVec.dz };
-        const dp2 = { x: p2.x+finalOffsetVec.dx, y: p2.y+finalOffsetVec.dy, z: p2.z+finalOffsetVec.dz };
-        const pr1 = project(p1), pr2 = project(p2), prD1 = project(dp1), prD2 = project(dp2);
-        const dir3D = getSegmentDirection3D(p1, p2);
-        let plane = 'RIGHT';
-        if (dir3D === 'X') plane = 'LEFT';
-        else if (dir3D === 'Y') plane = 'RIGHT';
-
-        _ctx.save();
-        
-        // Líneas de extensión (witness lines)
-        _ctx.beginPath(); _ctx.setLineDash([4,4]); _ctx.strokeStyle = '#64748b'; _ctx.lineWidth = 0.8;
-        _ctx.moveTo(pr1.x, pr1.y); _ctx.lineTo(prD1.x, prD1.y);
-        _ctx.moveTo(pr2.x, pr2.y); _ctx.lineTo(prD2.x, prD2.y); _ctx.stroke(); _ctx.setLineDash([]);
-
-        // Línea de cota
-        _ctx.beginPath(); _ctx.moveTo(prD1.x, prD1.y); _ctx.lineTo(prD2.x, prD2.y);
-        _ctx.strokeStyle = '#00ffcc'; _ctx.lineWidth = 1.5; _ctx.stroke();
-
-        // Ticks de cota (marcas a 45°)
-        _ctx.strokeStyle = '#00ffcc'; _ctx.lineWidth = 1.5;
-        const tickSize = 8;
-        _ctx.beginPath(); 
-        _ctx.moveTo(prD1.x - tickSize, prD1.y + tickSize); _ctx.lineTo(prD1.x + tickSize, prD1.y - tickSize); 
-        _ctx.stroke();
-        _ctx.beginPath(); 
-        _ctx.moveTo(prD2.x - tickSize, prD2.y + tickSize); _ctx.lineTo(prD2.x + tickSize, prD2.y - tickSize); 
-        _ctx.stroke();
-
-        // Texto de cota centrado
-        const midX = (prD1.x + prD2.x) / 2, midY = (prD1.y + prD2.y) / 2;
-        const dimText = formatDimensionText(realDist);
-        _ctx.font = `bold ${Math.max(10, 12 * _cam.scale)}px "Courier New", monospace`;
-        _ctx.fillStyle = '#ffffff';
-        _ctx.textAlign = 'center';
-        _ctx.textBaseline = 'middle';
-
-        // Fondo del texto
-        const textW = _ctx.measureText(dimText).width + 8;
-        _ctx.fillStyle = 'rgba(10, 15, 30, 0.9)';
-        _ctx.fillRect(midX - textW/2, midY - 9, textW, 18);
-        _ctx.strokeStyle = '#00ffcc';
-        _ctx.lineWidth = 1;
-        _ctx.strokeRect(midX - textW/2, midY - 9, textW, 18);
-        
-        _ctx.fillStyle = '#00ffcc';
-        if (plane === 'LEFT') {
-            _ctx.setTransform(1, 0.5, 0, 1, midX, midY);
-        } else if (plane === 'RIGHT') {
-            _ctx.setTransform(1, -0.5, 0, 1, midX, midY);
-        }
-        _ctx.fillText(dimText, 0, 0);
-        _ctx.restore();
-        _ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // FUNCIONES AUXILIARES (MANTENIDAS DEL ORIGINAL)
-    // ═══════════════════════════════════════════════════════
-
-    function drawFlowArrow(p1, p2, diameter) {
-        if (!p1 || !p2) return;
-        const proj1 = project(p1), proj2 = project(p2);
-        const angle = Math.atan2(proj2.y - proj1.y, proj2.x - proj1.x);
-        const midX = (proj1.x + proj2.x) / 2, midY = (proj1.y + proj2.y) / 2;
-        _ctx.save(); _ctx.translate(midX, midY); _ctx.rotate(angle);
-        const arrowSize = 12 * _cam.scale;
-        _ctx.beginPath();
-        _ctx.moveTo(-arrowSize, -arrowSize/2); _ctx.lineTo(0, 0); _ctx.lineTo(-arrowSize, arrowSize/2);
-        _ctx.fillStyle = '#00f2ff'; _ctx.shadowColor = '#00f2ff'; _ctx.shadowBlur = 8;
-        _ctx.fill(); _ctx.shadowBlur = 0; _ctx.restore();
-    }
-
-    function drawPuertos(obj) {
-        if (!obj.puertos) return;
-        const posBase = obj.posX !== undefined ? { x: obj.posX, y: obj.posY, z: obj.posZ } : 
-                       (obj._cachedPoints && obj._cachedPoints.length > 0 ? obj._cachedPoints[0] : { x: 0, y: 0, z: 0 });
-        obj.puertos.forEach(nz => {
-            const pos = { 
-                x: posBase.x + (nz.relX || nz.relPos?.x || 0), 
-                y: posBase.y + (nz.relY || nz.relPos?.y || 0), 
-                z: posBase.z + (nz.relZ || nz.relPos?.z || 0) 
-            };
-            const proj = project(pos);
-            
-            if (nz.orientacion) {
-                const dir = nz.orientacion;
-                const endPos = { x: pos.x + dir.dx * 250, y: pos.y + dir.dy * 250, z: pos.z + dir.dz * 250 };
-                const projEnd = project(endPos);
-                _ctx.beginPath(); _ctx.moveTo(proj.x, proj.y); _ctx.lineTo(projEnd.x, projEnd.y);
-                _ctx.strokeStyle = '#ffaa00'; _ctx.lineWidth = 2; _ctx.stroke();
-                
-                const arrowAngle = Math.atan2(projEnd.y - proj.y, projEnd.x - proj.x);
-                const arrowSize = 8;
-                _ctx.beginPath();
-                _ctx.moveTo(projEnd.x, projEnd.y);
-                _ctx.lineTo(projEnd.x - arrowSize * Math.cos(arrowAngle - 0.5), projEnd.y - arrowSize * Math.sin(arrowAngle - 0.5));
-                _ctx.lineTo(projEnd.x - arrowSize * Math.cos(arrowAngle + 0.5), projEnd.y - arrowSize * Math.sin(arrowAngle + 0.5));
-                _ctx.closePath(); _ctx.fillStyle = '#ffaa00'; _ctx.fill();
-            }
-            
-            _ctx.beginPath(); _ctx.arc(proj.x, proj.y, 6, 0, 2*Math.PI);
-            _ctx.fillStyle = nz.connectedLine ? '#4ade80' : '#ff8800'; _ctx.fill();
-            _ctx.strokeStyle = '#fff'; _ctx.lineWidth = 1; _ctx.stroke();
-            
-            const label = `${nz.id} ${nz.diametro || obj.diameter || 3}"`;
-            _ctx.font = `bold ${Math.max(8, 10*_cam.scale)}px monospace`;
-            _ctx.fillStyle = '#ffffff';
-            _ctx.fillText(label, proj.x + 10, proj.y - 6);
-        });
     }
 
     function drawPipeComponents(line) {
         if (!_core) return;
         const pts = _core.getLinePoints(line);
         if (!pts || pts.length < 2 || !line.components) return;
-        
         let lengths = [], totalLen = 0;
         for (let i = 0; i < pts.length - 1; i++) {
             let d = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y, pts[i+1].z - pts[i].z);
             lengths.push(d); totalLen += d;
         }
         if (totalLen === 0) return;
-        
         line.components.forEach((comp, idx) => {
             let targetLen = totalLen * Math.min(1, Math.max(0, comp.param || 0.5));
             let currentAccum = 0, p1, p2, t = 0;
@@ -1079,18 +676,16 @@ const SmartFlowRenderer = (function() {
             const proj = project(pos3D);
             const dir3D = getSegmentDirection3D(p1, p2);
             const isHovered = _hoveredComponent && _hoveredComponent.comp === comp;
-            
             _ctx.save();
             if (isHovered) {
                 _ctx.shadowColor = '#fbbf24'; _ctx.shadowBlur = 18;
                 _ctx.globalAlpha = 1.0;
             } else {
                 _ctx.shadowColor = 'transparent'; _ctx.shadowBlur = 0;
-                _ctx.globalAlpha = 0.7;
+                _ctx.globalAlpha = 0.55;
             }
             drawSymbol(proj.x, proj.y, dir3D, comp);
             _ctx.restore();
-            
             comp._screenPos = proj;
             if (AnnotationManager.isVisible(3)) {
                 const globalIndex = _bomItems.length + 1;
@@ -1113,9 +708,13 @@ const SmartFlowRenderer = (function() {
         _ctx.strokeStyle = '#e2e8f0';
         _ctx.fillStyle = '#0f172a';
 
-        if (dir3D === 'X') { _ctx.setTransform(1, 0.5, 0, 1, x, y); }
-        else if (dir3D === 'Z') { _ctx.setTransform(1, -0.5, 0, 1, x, y); }
-        else if (dir3D === 'Y') { _ctx.setTransform(0, 1, -1, 0, x, y); }
+        if (dir3D === 'X') {
+            _ctx.setTransform(1, 0.5, 0, 1, x, y);
+        } else if (dir3D === 'Z') {
+            _ctx.setTransform(1, -0.5, 0, 1, x, y);
+        } else if (dir3D === 'Y') {
+            _ctx.setTransform(0, 1, -1, 0, x, y);
+        }
 
         switch (comp.type) {
             case 'BUTTERFLY_VALVE':
@@ -1175,10 +774,7 @@ const SmartFlowRenderer = (function() {
             case 'SLIP_ON_FLANGE': case 'BLIND_FLANGE': case 'LAP_JOINT_FLANGE':
                 _ctx.beginPath(); _ctx.moveTo(-s*0.4, -s); _ctx.lineTo(-s*0.4, s); _ctx.moveTo(s*0.4, -s); _ctx.lineTo(s*0.4, s); _ctx.lineWidth = 1; _ctx.stroke();
                 _ctx.fillRect(-s*0.7, -s*0.9, s*1.4, s*1.8); _ctx.strokeRect(-s*0.7, -s*0.9, s*1.4, s*1.8);
-                if (comp.type === 'BLIND_FLANGE') { 
-                    _ctx.beginPath(); _ctx.moveTo(-s*0.5,-s*0.7); _ctx.lineTo(s*0.5,s*0.7); 
-                    _ctx.moveTo(s*0.5,-s*0.7); _ctx.lineTo(-s*0.5,s*0.7); _ctx.stroke(); 
-                }
+                if (comp.type === 'BLIND_FLANGE') { _ctx.beginPath(); _ctx.moveTo(-s*0.5,-s*0.7); _ctx.lineTo(s*0.5,s*0.7); _ctx.moveTo(s*0.5,-s*0.7); _ctx.lineTo(-s*0.5,s*0.7); _ctx.stroke(); }
                 break;
             case 'TEE_EQUAL': case 'TEE_REDUCING':
                 _ctx.beginPath(); _ctx.moveTo(-s*0.9, 0); _ctx.lineTo(s*0.9, 0); _ctx.moveTo(0, 0); _ctx.lineTo(0, -s*1.3);
@@ -1188,11 +784,13 @@ const SmartFlowRenderer = (function() {
                 break;
             case 'ELBOW_45':
                 _ctx.beginPath(); _ctx.arc(0, 0, s, 0, Math.PI/4); _ctx.strokeStyle = '#f8fafc'; _ctx.lineWidth = 2.5; _ctx.stroke();
+                _ctx.beginPath(); _ctx.arc(0, 0, s, 0, Math.PI/4); _ctx.strokeStyle = '#ffffff'; _ctx.lineWidth = 0.8; _ctx.globalAlpha = 0.5; _ctx.stroke(); _ctx.globalAlpha = 1;
                 _ctx.fillStyle = '#ffffff'; _ctx.beginPath(); _ctx.arc(0, 0, 3, 0, Math.PI*2); _ctx.fill();
                 break;
             case 'ELBOW_90_LR': case 'ELBOW_90_SR':
                 const r = comp.type === 'ELBOW_90_LR' ? s*1.3 : s*0.8;
                 _ctx.beginPath(); _ctx.arc(0, 0, r, 0, Math.PI/2); _ctx.strokeStyle = '#f8fafc'; _ctx.lineWidth = 2.5; _ctx.stroke();
+                _ctx.beginPath(); _ctx.arc(0, 0, r, 0, Math.PI/2); _ctx.strokeStyle = '#ffffff'; _ctx.lineWidth = 0.8; _ctx.globalAlpha = 0.5; _ctx.stroke(); _ctx.globalAlpha = 1;
                 _ctx.fillStyle = '#ffffff'; _ctx.beginPath(); _ctx.arc(0, 0, 3, 0, Math.PI*2); _ctx.fill();
                 break;
             case 'CAP':
@@ -1269,10 +867,90 @@ const SmartFlowRenderer = (function() {
         _ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
+    function drawIsometricDimension(p1, p2, offset = 1200) {
+        const realDist = Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
+        if (realDist < 50) return;
+        const dynamicOffset = Math.max(600, Math.min(3000, realDist * 0.4));
+        const finalOffset = offset || dynamicOffset;
+        const orientation = getPipeOrientation(p1, p2);
+        let candA, candB;
+        if (orientation === 'horizontal') { candA = { dx: 0, dy: -finalOffset, dz: 0 }; candB = { dx: 0, dy: finalOffset, dz: 0 }; }
+        else { candA = { dx: finalOffset, dy: 0, dz: 0 }; candB = { dx: -finalOffset, dy: 0, dz: 0 }; }
+        const checkCollision = (offsetV) => {
+            const midPoint = { x: (p1.x+p2.x)/2+offsetV.dx, y: (p1.y+p2.y)/2+offsetV.dy, z: (p1.z+p2.z)/2+offsetV.dz };
+            return isPointCollidingWithEquipment(midPoint, 1200);
+        };
+        const finalOffsetVec = checkCollision(candA) ? candB : candA;
+        const dp1 = { x: p1.x+finalOffsetVec.dx, y: p1.y+finalOffsetVec.dy, z: p1.z+finalOffsetVec.dz };
+        const dp2 = { x: p2.x+finalOffsetVec.dx, y: p2.y+finalOffsetVec.dy, z: p2.z+finalOffsetVec.dz };
+        const pr1 = project(p1), pr2 = project(p2), prD1 = project(dp1), prD2 = project(dp2);
+        const dir3D = getSegmentDirection3D(p1, p2);
+        let plane = 'RIGHT';
+        if (dir3D === 'X') plane = 'LEFT';
+        else if (dir3D === 'Y') plane = 'RIGHT';
+
+        _ctx.save();
+        _ctx.beginPath(); _ctx.setLineDash([4,4]); _ctx.strokeStyle = '#64748b'; _ctx.lineWidth = 1;
+        _ctx.moveTo(pr1.x, pr1.y); _ctx.lineTo(prD1.x, prD1.y);
+        _ctx.moveTo(pr2.x, pr2.y); _ctx.lineTo(prD2.x, prD2.y); _ctx.stroke(); _ctx.setLineDash([]);
+
+        _ctx.beginPath(); _ctx.moveTo(prD1.x, prD1.y); _ctx.lineTo(prD2.x, prD2.y);
+        _ctx.strokeStyle = '#00ffcc'; _ctx.lineWidth = 1.5; _ctx.stroke();
+
+        _ctx.strokeStyle = '#00ffcc'; _ctx.lineWidth = 1.5;
+        _ctx.beginPath(); _ctx.moveTo(prD1.x - 4, prD1.y + 4); _ctx.lineTo(prD1.x + 4, prD1.y - 4); _ctx.stroke();
+        _ctx.beginPath(); _ctx.moveTo(prD2.x - 4, prD2.y + 4); _ctx.lineTo(prD2.x + 4, prD2.y - 4); _ctx.stroke();
+
+        const midX = (prD1.x + prD2.x) / 2, midY = (prD1.y + prD2.y) / 2;
+        _ctx.font = `bold ${Math.max(10, 12 * _cam.scale)}px "Courier New", monospace`;
+        _ctx.fillStyle = '#ffffff';
+        _ctx.textAlign = 'center';
+        _ctx.textBaseline = 'middle';
+
+        if (plane === 'LEFT') {
+            _ctx.setTransform(1, 0.5, 0, 1, midX, midY - 5);
+        } else if (plane === 'RIGHT') {
+            _ctx.setTransform(1, -0.5, 0, 1, midX, midY - 5);
+        }
+        _ctx.fillText(formatDimensionText(realDist), 0, 0);
+        _ctx.restore();
+        _ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    function drawEquipmentTag2D(projectedCenter, tag, equipmentName) {
+        if (!AnnotationManager.isVisible(2)) return;
+        const prefX = projectedCenter.x;
+        const prefY = projectedCenter.y - 60;
+        const box = AnnotationManager.register({ x: prefX + 20, y: prefY, w: 90, h: 24 }, 2);
+
+        _ctx.save();
+        _ctx.setTransform(1, 0, 0, 1, 0, 0);
+        _ctx.strokeStyle = '#f59e0b';
+        _ctx.lineWidth = 1.5;
+        _ctx.beginPath();
+        _ctx.moveTo(projectedCenter.x, projectedCenter.y);
+        _ctx.lineTo(box.x, box.y + 12);
+        _ctx.lineTo(box.x - 20, box.y + 12);
+        _ctx.stroke();
+
+        _ctx.fillStyle = '#1e293b';
+        _ctx.fillRect(box.x, box.y, box.w, box.h);
+        _ctx.strokeRect(box.x, box.y, box.w, box.h);
+
+        _ctx.fillStyle = '#ffffff';
+        _ctx.font = 'bold 11px "Courier New"';
+        _ctx.textAlign = 'center';
+        _ctx.textBaseline = 'middle';
+        _ctx.fillText(tag, box.x + box.w/2, box.y + 12);
+
+        _ctx.restore();
+        _ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
     function drawSelection(element) {
         if (!element) return;
         _ctx.save();
-        _ctx.strokeStyle = '#facc15'; _ctx.lineWidth = 4; _ctx.shadowColor = '#facc15'; _ctx.shadowBlur = 12;
+        _ctx.strokeStyle = '#facc15'; _ctx.lineWidth = 4; _ctx.shadowColor = '#facc15'; _ctx.shadowBlur = 10;
         if (element.type === 'equipment') {
             const eq = element.obj;
             if (eq.tipo === 'colector') {
@@ -1289,71 +967,9 @@ const SmartFlowRenderer = (function() {
             }
         } else if (element.type === 'line') {
             const pts = _core.getLinePoints(element.obj);
-            if (pts && pts.length >= 2) { 
-                _ctx.beginPath(); 
-                pts.forEach((p,i) => { const pr = project(p); i===0 ? _ctx.moveTo(pr.x,pr.y) : _ctx.lineTo(pr.x,pr.y); }); 
-                _ctx.stroke(); 
-            }
+            if (pts && pts.length >= 2) { _ctx.beginPath(); pts.forEach((p,i) => { const pr = project(p); i===0 ? _ctx.moveTo(pr.x,pr.y) : _ctx.lineTo(pr.x,pr.y); }); _ctx.stroke(); }
         }
         _ctx.restore();
-    }
-
-    // ═══════════════════════════════════════════════════════
-    // FUNCIONES DE PICKING, PROYECCIÓN Y UTILIDAD
-    // ═══════════════════════════════════════════════════════
-
-    function getPointAtDistance(from, to, dist) { 
-        const d = Math.hypot(to.x-from.x, to.y-from.y, to.z-from.z); 
-        if (d === 0) return { ...from };
-        const t = Math.min(dist/d, 0.5); 
-        return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, z: from.z + (to.z - from.z) * t }; 
-    }
-
-    function getSegmentDirection3D(p1, p2) {
-        const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
-        const absX = Math.abs(dx), absY = Math.abs(dy), absZ = Math.abs(dz);
-        if (absY > absX && absY > absZ) return 'Y';
-        return absX >= absZ ? 'X' : 'Z';
-    }
-
-    function getPipeOrientation(p1, p2) {
-        const dx = Math.abs(p2.x - p1.x), dy = Math.abs(p2.y - p1.y), dz = Math.abs(p2.z - p1.z);
-        return (dy > dx && dy > dz) ? 'vertical' : 'horizontal';
-    }
-
-    function isPointCollidingWithEquipment(point, margin = 1500) {
-        if (!_core) return false;
-        const db = _core.getDb(); if (!db || !db.equipos) return false;
-        return db.equipos.some(eq => {
-            if (eq.tipo === 'tanque_v' || eq.tipo === 'torre' || eq.tipo === 'reactor') {
-                const dx = Math.abs(point.x - eq.posX), dz = Math.abs(point.z - eq.posZ);
-                const radius = (eq.diametro / 2) + margin;
-                return (dx <= radius && dz <= radius);
-            } else if (eq.tipo === 'tanque_h') {
-                const halfL = (eq.largo / 2) + margin, halfD = (eq.diametro / 2) + margin;
-                const dx = Math.abs(point.x - eq.posX), dz = Math.abs(point.z - eq.posZ);
-                return (dx <= halfL && dz <= halfD);
-            } else {
-                const halfL = ((eq.largo || 1000) / 2) + margin, halfW = ((eq.ancho || eq.diametro || 1000) / 2) + margin;
-                const dx = Math.abs(point.x - eq.posX), dz = Math.abs(point.z - eq.posZ);
-                return (dx <= halfL && dz <= halfW);
-            }
-        });
-    }
-
-    function lineHasAuditError(line) {
-        if (!_core) return false;
-        if (line.origin && line.origin.objTag) {
-            const obj = _core.findObjectByTag(line.origin.objTag);
-            const nz = obj?.puertos?.find(p => p.id === line.origin.portId);
-            if (nz && nz.diametro !== line.diameter) return true;
-        }
-        if (line.destination && line.destination.objTag) {
-            const obj = _core.findObjectByTag(line.destination.objTag);
-            const nz = obj?.puertos?.find(p => p.id === line.destination.portId);
-            if (nz && nz.diametro !== line.diameter) return true;
-        }
-        return false;
     }
 
     function isPointInCylinder(p, eq) { const dx = p.x - eq.posX, dz = p.z - eq.posZ; const radius = eq.diametro / 2; if (dx*dx + dz*dz > radius*radius) return false; const halfH = eq.altura / 2; return p.y >= eq.posY - halfH && p.y <= eq.posY + halfH; }
@@ -1513,11 +1129,9 @@ const SmartFlowRenderer = (function() {
         if (!_ctx || !_canvas) return;
         _renderScheduled = false;
         _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
-        
         const bgGrad = _ctx.createRadialGradient(_canvas.width/2, _canvas.height/2, _canvas.width*0.1, _canvas.width/2, _canvas.height/2, _canvas.width*0.9);
         bgGrad.addColorStop(0, '#0f172a'); bgGrad.addColorStop(1, '#020617');
         _ctx.fillStyle = bgGrad; _ctx.fillRect(0, 0, _canvas.width, _canvas.height);
-        
         drawGrid(_currentElevation);
         drawOrigin();
         if (!_core) return;
@@ -1559,6 +1173,10 @@ const SmartFlowRenderer = (function() {
                     case 'plataforma':drawPlataforma(eq);break;
                     default:drawRectEquip(eq,'#475569');
                 }
+                if (eq.tag && eq.tipo !== 'plataforma') {
+                    const projCenter = project({ x: eq.posX, y: eq.posY, z: eq.posZ });
+                    drawEquipmentTag2D(projCenter, eq.tag, eq.tipo || 'EQUIPO');
+                }
                 if (eq.puertos) {
                     eq.puertos.forEach(p => {
                         const worldPos = { x: eq.posX + (p.relX||0), y: eq.posY + (p.relY||0), z: eq.posZ + (p.relZ||0) };
@@ -1580,8 +1198,12 @@ const SmartFlowRenderer = (function() {
         if (selected) {
             drawSelection(selected);
             drawPortMarkers(selected.obj);
+            if (selected.type==='line' && _core.getLinePoints(selected.obj)) {
+                for (let i = 0; i < _core.getLinePoints(selected.obj).length-1; i++) {
+                    drawSmartDimension(_core.getLinePoints(selected.obj)[i], _core.getLinePoints(selected.obj)[i+1]);
+                }
+            }
         }
-        
         if (_activeSnap) {
             _ctx.save(); _ctx.beginPath(); _ctx.strokeStyle='#10b981'; _ctx.lineWidth=2;
             _ctx.arc(_activeSnap.screenPos.x,_activeSnap.screenPos.y,8,0,Math.PI*2); _ctx.stroke();
@@ -1589,8 +1211,8 @@ const SmartFlowRenderer = (function() {
             _ctx.fillText(`${_activeSnap.item.tag}:${_activeSnap.port.id} (${_activeSnap.port.diametro}")`,_activeSnap.screenPos.x+12,_activeSnap.screenPos.y-12);
             _ctx.restore();
         }
-        
         if (_hoveredComponent && _hoveredComponentScreenPos) drawTechnicalTooltip(_ctx, _hoveredComponent, _hoveredComponentScreenPos);
+
         if (_canvas.width >= 400) renderBOM();
     }
 
@@ -1613,6 +1235,15 @@ const SmartFlowRenderer = (function() {
         _ctx.fillText(fitting.tipo || fitting.tag || '', center.x+10, center.y-10); _ctx.restore();
     }
 
+    function drawSmartDimension(p1, p2) {
+        const proj1 = project(p1), proj2 = project(p2);
+        const dist = Math.sqrt(Math.pow(p2.x-p1.x,2)+Math.pow(p2.y-p1.y,2)+Math.pow(p2.z-p1.z,2));
+        if (dist < 10) return;
+        _ctx.save(); _ctx.setLineDash([2,2]); _ctx.strokeStyle = '#ef4444'; _ctx.beginPath(); _ctx.moveTo(proj1.x,proj1.y); _ctx.lineTo(proj2.x,proj2.y); _ctx.stroke();
+        _ctx.setLineDash([]); _ctx.fillStyle = '#ef4444'; _ctx.font = `${10*_cam.scale}px monospace`;
+        _ctx.fillText(formatDimensionText(dist), (proj1.x+proj2.x)/2, (proj1.y+proj2.y)/2-10); _ctx.restore();
+    }
+
     function drawPortMarkers(item) {
         if (!item || !item.puertos) return;
         const basePos = item.posX !== undefined ? { x: item.posX, y: item.posY, z: item.posZ } : (item._cachedPoints?.[0] || { x:0,y:0,z:0 });
@@ -1621,38 +1252,6 @@ const SmartFlowRenderer = (function() {
             _ctx.beginPath(); _ctx.fillStyle = (p.status==='open') ? '#10b981' : '#64748b';
             _ctx.arc(pProj.x, pProj.y, 4*_cam.scale, 0, Math.PI*2); _ctx.fill();
         });
-    }
-
-    function drawNozzleTag(proj2D, nozzle, parentEq) {
-        if (!AnnotationManager.isVisible(2)) return;
-        const diam = nozzle.diametro || parentEq.diametro || '?';
-        const elevation = nozzle.elevation || (parentEq.posY + (nozzle.relY || 0));
-        const label = `${nozzle.id} ${diam}" – EL ${elevation}`;
-        const plane = (nozzle.orientacion && Math.abs(nozzle.orientacion.dx) > Math.abs(nozzle.orientacion.dz)) ? 'LEFT' : 'RIGHT';
-        const prefX = proj2D.x + 35;
-        const prefY = proj2D.y - 25;
-        const box = AnnotationManager.register({ x: prefX, y: prefY - 10, w: 110, h: 22 }, 2);
-
-        _ctx.save();
-        _ctx.setTransform(1, 0, 0, 1, 0, 0);
-        _ctx.strokeStyle = '#f59e0b';
-        _ctx.lineWidth = 1;
-        _ctx.beginPath();
-        _ctx.moveTo(proj2D.x, proj2D.y);
-        _ctx.lineTo(box.x, box.y + 11);
-        _ctx.stroke();
-        _ctx.restore();
-
-        _ctx.save();
-        if (plane === 'LEFT') _ctx.setTransform(1, 0.5, 0, 1, box.x, box.y + 11);
-        else _ctx.setTransform(1, -0.5, 0, 1, box.x, box.y + 11);
-        _ctx.font = 'bold 10px "Courier New", monospace';
-        _ctx.fillStyle = '#ffffff';
-        _ctx.textAlign = 'left';
-        _ctx.textBaseline = 'middle';
-        _ctx.fillText(label, 0, 0);
-        _ctx.restore();
-        _ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
     function drawTechnicalTooltip(ctx, comp, screenPos) {
@@ -1680,36 +1279,32 @@ const SmartFlowRenderer = (function() {
 
     function renderBOM() {
         if (_bomItems.length === 0) return;
-        const x = 20, padding = 15, rowHeight = 18, headerHeight = 25, tableWidth = 260;
+        const x = 20, padding = 15, rowHeight = 18, headerHeight = 25, tableWidth = 240;
         const tableHeight = headerHeight + (_bomItems.length * rowHeight) + padding;
         const y = _canvas.height - tableHeight - 20;
         _ctx.save(); _ctx.setTransform(1, 0, 0, 1, 0, 0);
-        _ctx.fillStyle = "rgba(15, 23, 42, 0.92)"; _ctx.beginPath(); _ctx.roundRect(x, y, tableWidth, tableHeight, 8); _ctx.fill();
-        _ctx.strokeStyle = "#0ea5e9"; _ctx.lineWidth = 1.5; _ctx.stroke();
+        _ctx.fillStyle = "rgba(15, 23, 42, 0.9)"; _ctx.beginPath(); _ctx.roundRect(x, y, tableWidth, tableHeight, 8); _ctx.fill();
+        _ctx.strokeStyle = "#0ea5e9"; _ctx.lineWidth = 1; _ctx.stroke();
         _ctx.fillStyle = "#0ea5e9"; _ctx.font = "bold 10px 'Segoe UI', sans-serif";
-        _ctx.fillText("ITEM", x+12, y+17); _ctx.fillText("DESCRIPCIÓN", x+50, y+17); _ctx.fillText("MAT", x+220, y+17);
+        _ctx.fillText("ITEM", x+12, y+17); _ctx.fillText("DESCRIPCIÓN COMPONENTE", x+45, y+17); _ctx.fillText("MAT", x+205, y+17);
         _ctx.beginPath(); _ctx.moveTo(x+10, y+22); _ctx.lineTo(x+tableWidth-10, y+22); _ctx.strokeStyle = "rgba(14,165,233,0.3)"; _ctx.stroke();
         _bomItems.forEach((item, i) => {
             const rowY = y + headerHeight + (i*rowHeight) + 12;
-            _ctx.fillStyle = "rgba(14,165,233,0.1)"; _ctx.beginPath(); _ctx.arc(x+20, rowY-3, 8, 0, Math.PI*2); _ctx.fill();
+            _ctx.fillStyle = "rgba(14,165,233,0.1)"; _ctx.beginPath(); _ctx.arc(x+20, rowY-3, 7, 0, Math.PI*2); _ctx.fill();
             _ctx.fillStyle = "#f8fafc"; _ctx.font = "9px 'Roboto Mono', monospace"; _ctx.textAlign = "center"; _ctx.fillText(item.index, x+20, rowY);
-            _ctx.textAlign = "left"; _ctx.fillText(item.desc.replace(/_/g,' ').substring(0,28), x+50, rowY);
-            _ctx.fillStyle = "#94a3b8"; _ctx.fillText(item.mat, x+220, rowY);
+            _ctx.textAlign = "left"; _ctx.fillText(item.desc.replace('_',' ').substring(0,24), x+45, rowY);
+            _ctx.fillStyle = "#94a3b8"; _ctx.fillText(item.mat, x+205, rowY);
         });
         _ctx.restore();
     }
-
-    // ═══════════════════════════════════════════════════════
-    // EXPORTACIONES
-    // ═══════════════════════════════════════════════════════
 
     function exportPDF() {
         if (!_canvas) return;
         if (typeof window.jspdf === 'undefined') { _notifyUI("Error: jsPDF no disponible.", true); return; }
         const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'landscape' });
         const imgData = _canvas.toDataURL('image/png'); doc.addImage(imgData, 'PNG', 10, 10, 277, 150);
-        doc.setFontSize(16); doc.text("SmartEngp - Reporte Isométrico", 10, 175);
-        doc.setFontSize(10); doc.text(`Proyecto: ${window.currentProjectName || 'N/D'} | Fecha: ${new Date().toLocaleString()}`, 10, 185);
+        doc.setFontSize(16); doc.text("SmartProject - Reporte Isometrico", 10, 175);
+        doc.text(`Fecha: ${new Date().toLocaleString()}`, 10, 185);
         doc.save(`${window.currentProjectName || 'Proyecto'}_Isometrico_${Date.now()}.pdf`);
         _notifyUI("PDF generado correctamente.", false);
     }
@@ -1728,7 +1323,7 @@ const SmartFlowRenderer = (function() {
         const blob = new Blob([pcfContent], { type: 'text/plain' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         const projectName = window.currentProjectName || 'Proyecto'; const timestamp = new Date().toISOString().slice(0,19).replace(/:/g, '-');
         a.download = `${projectName}_PCF_${timestamp}.pcf`; a.click();
-        _notifyUI("Archivo PCF exportado correctamente.", false);
+        _notifyUI("Archivo PCF exportado correctamente con vectores de orientación.", false);
     }
 
     const skeyMap = {
@@ -1736,11 +1331,12 @@ const SmartFlowRenderer = (function() {
         'VALVE_BALL': 'VBAL', 'CHECK_VALVE': 'VCFF', 'DIAPHRAGM_VALVE': 'VDIA', 'CONTROL_VALVE': 'VCON',
         'PRESSURE_RELIEF': 'VPRV', 'SAFETY_VALVE': 'VSFT', 'WELD_NECK_FLANGE': 'FLWN', 'SLIP_ON_FLANGE': 'FLSO',
         'BLIND_FLANGE': 'FLBL', 'LAP_JOINT_FLANGE': 'FLLJ', 'ELBOW_90_LR': 'ELBW', 'ELBOW_90_SR': 'ELBS',
-        'ELBOW_45': 'ELL4', 'CONCENTRIC_REDUCER': 'RECN', 'ECCENTRIC_REDUCER': 'REEC', 'TEE_EQUAL': 'TEE',
-        'TEE_REDUCING': 'TEER', 'CROSS': 'CROS', 'CAP': 'CAPF', 'PIPE_SHOE': 'SHOE', 'U_BOLT': 'UBOL',
+        'ELBOW_45': 'ELL4', 'ELBOW_90_PPR': 'ELBW', 'ELBOW_45_PPR': 'ELL4', 'CODO_90_ACERO_3IN': 'ELBW',
+        'CONCENTRIC_REDUCER': 'RECN', 'ECCENTRIC_REDUCER': 'REEC', 'TEE_EQUAL': 'TEE', 'TEE_REDUCING': 'TEER',
+        'TEE_PPR': 'TEE', 'CROSS': 'CROS', 'CAP': 'CAPF', 'PIPE_SHOE': 'SHOE', 'U_BOLT': 'UBOL',
         'GUIDE': 'GUID', 'ANCHOR': 'ANCH', 'TRANSITION': 'TRAN', 'UNION': 'UNIO', 'BULKHEAD': 'BULK',
         'Y_STRAINER': 'STRY', 'PRESSURE_GAUGE': 'INPG', 'TEMPERATURE_GAUGE': 'INTG', 'FLOW_METER': 'INFM',
-        'LEVEL_SWITCH_RANA': 'INSLS', 'PLUG_VALVE': 'VAPL', 'CHOKE_VALVE': 'VACH', 'CRYOGENIC_VALVE': 'VACR'
+        'LEVEL_SWITCH_RANA': 'INSLS'
     };
 
     function calculateComponentPosition(line, param) {
@@ -1768,10 +1364,6 @@ const SmartFlowRenderer = (function() {
         if (dirVec) { lines.push(`    ENTRY               ${dirVec.dx.toFixed(3)} ${dirVec.dy.toFixed(3)} ${dirVec.dz.toFixed(3)}`); lines.push(`    EXIT                ${dirVec.dx.toFixed(3)} ${dirVec.dy.toFixed(3)} ${dirVec.dz.toFixed(3)}`); }
         lines.push(`    FABRICATION-ITEM`); return lines.join('\n');
     }
-
-    // ═══════════════════════════════════════════════════════
-    // INICIALIZACIÓN Y API PÚBLICA
-    // ═══════════════════════════════════════════════════════
 
     function init(canvasElement, coreInstance, notifyFn) {
         _canvas = canvasElement;
