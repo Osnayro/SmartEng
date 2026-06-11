@@ -1,9 +1,13 @@
-
+// ============================================================
+// SMARTFLOW MAIN - Punto de Entrada Principal v2.18
 // Archivo: js/main.js
+// Novedades v2.18: Integración con SmartFlowIO (PCF/JSON/MTO)
+// ============================================================
 
 (function() {
     "use strict";
     
+    // -------------------- 1. REFERENCIAS AL DOM --------------------
     const canvas = document.getElementById('isoCanvas');
     const notificationEl = document.getElementById('notification');
     const statusMsgEl = document.getElementById('statusMsg');
@@ -18,6 +22,7 @@
     const projectModal = document.getElementById('project-name-modal');
     const projectInput = document.getElementById('project-name-input');
     
+    // -------------------- 2. ESTADO DE LA APLICACIÓN --------------------
     let toolMode = 'select';
     let voiceEnabled = true;
     let currentViewMode = '2d';
@@ -30,6 +35,7 @@
     let draggedEquipTag = null;
     let dragLastPos = { x: 0, y: 0 };
     
+    // -------------------- 3. HISTORIAL DE COMANDOS --------------------
     const _commandHistory = [];
     const MAX_HISTORY = 50;
     let _historyIndex = -1;
@@ -84,6 +90,7 @@
         setTimeout(function() { _isNavigatingHistory = false; }, 50);
     }
     
+    // -------------------- 4. FUNCIONES DE UI --------------------
     function notify(msg, isErr) {
         if (isErr === undefined) isErr = false;
         if (notificationEl) {
@@ -202,6 +209,7 @@
         `;
     }
     
+    // -------------------- 4.5. WAIT FOR 3D MODULES --------------------
     function waitFor3DModules(callback) {
         var maxAttempts = 50;
         var attempts = 0;
@@ -220,9 +228,11 @@
         check();
     }
     
+    // -------------------- 5. INICIALIZACIÓN DE MÓDULOS --------------------
     function initModules() {
         SmartFlowCore.init(notify, scheduleRender, updatePropertyPanel);
         
+        // ===== INICIALIZAR SmartFlowIO =====
         if (typeof SmartFlowIO !== 'undefined' && !_ioInitialized) {
             SmartFlowIO.init(SmartFlowCore, notify);
             _ioInitialized = true;
@@ -266,6 +276,7 @@
         notify('SmartEngp listo (' + currentViewMode.toUpperCase() + ')', false);
     }
     
+    // ═══ SINGLETON DE VISTAS ═══
     function switchViewMode(mode) {
         if (currentViewMode === mode) return;
         
@@ -351,11 +362,13 @@
         }
     }
     
+    // -------------------- 6. GESTIÓN DE PROYECTOS --------------------
     function guardarProyecto() {
         if (typeof SmartFlowIO !== 'undefined' && SmartFlowIO.downloadJSON) {
             SmartFlowIO.downloadJSON();
             return;
         }
+        // Fallback
         const state = SmartFlowCore.exportProject();
         localStorage.setItem('smartengp_v2_project', state);
         notify("✅ Proyecto guardado en el navegador.", false);
@@ -366,6 +379,7 @@
             SmartFlowIO.uploadAndImportJSON();
             return;
         }
+        // Fallback
         const data = localStorage.getItem('smartengp_v2_project');
         if (data) {
             try {
@@ -386,6 +400,7 @@
             SmartFlowIO.downloadJSON();
             return;
         }
+        // Fallback
         const state = SmartFlowCore.exportProject();
         const blob = new Blob([state], { type: 'application/json' });
         const a = document.createElement('a');
@@ -400,6 +415,7 @@
             SmartFlowIO.uploadAndImportJSON();
             return;
         }
+        // Fallback
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json';
@@ -445,11 +461,13 @@
         if (statusMsgEl) statusMsgEl.textContent = 'Proyecto: ' + window.currentProjectName + ' | Listo';
     }
     
+    // -------------------- 7. MTO Y RESUMEN --------------------
     function exportarMTO() {
         if (typeof SmartFlowIO !== 'undefined' && SmartFlowIO.downloadMTO) {
             SmartFlowIO.downloadMTO();
             return;
         }
+        // Fallback
         const equipos = SmartFlowCore.getEquipos();
         const lines = SmartFlowCore.getLines();
         let items = [];
@@ -494,6 +512,7 @@
         notify(resumen, false);
     }
     
+    // -------------------- 8. HERRAMIENTAS --------------------
     function setTool(mode) {
         toolMode = mode;
         const buttons = {
@@ -522,6 +541,7 @@
         notify(voiceEnabled ? "✅ Voz activada" : "🔇 Voz desactivada", false);
     }
     
+    // -------------------- 9. ATAJOS DE TECLADO --------------------
     function setupKeyboardShortcuts() {
         document.addEventListener('keydown', function(e) {
             const activeEl = document.activeElement;
@@ -550,6 +570,7 @@
         });
     }
     
+    // -------------------- 10. EVENTOS DEL CANVAS --------------------
     function initCanvasEvents() {
         if (!canvas) return;
         
@@ -631,6 +652,7 @@
         canvas.addEventListener('pointercancel', endDragHandler);
     }
     
+    // -------------------- 11. CABLEADO DE BOTONES --------------------
     function abrirPanelComandos() {
         if (commandPanel) {
             commandPanel.style.display = 'block';
@@ -762,6 +784,7 @@
             }
         });
         
+        // ===== BOTONES PCF (usan SmartFlowIO) =====
         vincular('btnExportPCF', function() {
             if (typeof SmartFlowIO !== 'undefined' && SmartFlowIO.downloadPCF) {
                 SmartFlowIO.downloadPCF();
@@ -848,6 +871,7 @@
         });
     }
     
+    // -------------------- 12. ARRANQUE DE LA APLICACIÓN --------------------
     function init() {
         window.currentProjectName = window.currentProjectName || 'Proyecto_SmartEngp';
         window.voiceEnabled = true;
