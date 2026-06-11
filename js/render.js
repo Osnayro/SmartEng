@@ -1,4 +1,6 @@
 
+// Archivo: js/render3d.js
+
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -221,9 +223,7 @@ const SmartFlowRender = (function() {
         group.add(socket);
         return group;
     }
-    // ═══════════════════════════════════════════
-    // TANQUE VERTICAL METÁLICO
-    // ═══════════════════════════════════════════
+
     function createTankVerticalMetalico(eq, specMat) {
         var mat = MaterialLibrary.clone(specMat);
         var r = toM((eq.diametro || 3000) / 2);
@@ -334,9 +334,6 @@ const SmartFlowRender = (function() {
         return group;
     }
     
-    // ═══════════════════════════════════════════
-    // TANQUE VERTICAL PLÁSTICO (PE/HDPE/PPR/FRP)
-    // ═══════════════════════════════════════════
     function createTankVerticalPlastico(eq, specMat) {
         var mat = MaterialLibrary.clone(specMat);
         if (mat.metalness < 0.05 && mat.color.getHex() !== 0x8b5cf6) {
@@ -413,9 +410,6 @@ const SmartFlowRender = (function() {
         return createTankVerticalMetalico(eq, specMat);
     }
     
-    // ═══════════════════════════════════════════
-    // TANQUE HORIZONTAL MEJORADO
-    // ═══════════════════════════════════════════
     function createTankHorizontal(eq) {
         var specMat = getSpecMaterial(eq.spec || 'ACERO_150_RF');
         var mat = MaterialLibrary.clone(specMat);
@@ -488,9 +482,6 @@ const SmartFlowRender = (function() {
         return group;
     }
     
-    // ═══════════════════════════════════════════
-    // BOMBA CENTRÍFUGA MEJORADA
-    // ═══════════════════════════════════════════
     function createBomba(eq) {
         var specMat = getSpecMaterial(eq.spec || 'ACERO_150_RF');
         var mat = MaterialLibrary.clone(specMat);
@@ -592,9 +583,6 @@ const SmartFlowRender = (function() {
         return group;
     }
     
-    // ═══════════════════════════════════════════
-    // COMPRESOR MEJORADO
-    // ═══════════════════════════════════════════
     function createCompresor(eq) {
         var specMat = getSpecMaterial(eq.spec || 'ACERO_150_RF');
         var mat = MaterialLibrary.clone(specMat);
@@ -631,9 +619,6 @@ const SmartFlowRender = (function() {
         return group;
     }
     
-    // ═══════════════════════════════════════════
-    // INTERCAMBIADOR DE CALOR MEJORADO
-    // ═══════════════════════════════════════════
     function createExchanger(eq) {
         var specMat = getSpecMaterial(eq.spec || 'ACERO_150_RF');
         var mat = MaterialLibrary.clone(specMat);
@@ -687,10 +672,6 @@ const SmartFlowRender = (function() {
         return group;
     }
 
-
-    // ═══════════════════════════════════════════
-    // PLATAFORMA DE CONCRETO MEJORADA
-    // ═══════════════════════════════════════════
     function createPlataformaConcreto(eq) {
         var w = toM(eq.largo || 6000);
         var d = toM(eq.ancho || 3000);
@@ -702,7 +683,6 @@ const SmartFlowRender = (function() {
         losa.castShadow = true; losa.receiveShadow = true;
         group.add(losa);
         
-        // Juntas de dilatación (líneas grabadas en la superficie)
         for (var jx = -w/2 + 2; jx < w/2 - 1; jx += 2.5) {
             var jointX = new THREE.Mesh(
                 new THREE.BoxGeometry(0.015, h * 0.08, d * 0.9), MaterialLibrary.concreteJoint
@@ -718,7 +698,6 @@ const SmartFlowRender = (function() {
             group.add(jointZ);
         }
         
-        // Borde perimetral
         var bordeMat = MaterialLibrary.concreteDark;
         var bordeLargo1 = new THREE.Mesh(new THREE.BoxGeometry(w + 0.15, h * 0.15, 0.2), bordeMat);
         bordeLargo1.position.set(0, h + h * 0.075, -d/2 - 0.05);
@@ -733,7 +712,6 @@ const SmartFlowRender = (function() {
         bordeAncho2.position.set(w/2 + 0.05, h + h * 0.075, 0);
         group.add(bordeAncho2);
         
-        // Canales de drenaje (ranuras en el borde)
         for (var di = 0; di < 2; di++) {
             var drainX = -w/4 + di * w/2;
             var drain = new THREE.Mesh(
@@ -743,7 +721,6 @@ const SmartFlowRender = (function() {
             group.add(drain);
         }
         
-        // Pilares con insertos metálicos
         var posiciones = [
             [-w/2 + 0.2, -d/2 + 0.2], [w/2 - 0.2, -d/2 + 0.2],
             [w/2 - 0.2, d/2 - 0.2], [-w/2 + 0.2, d/2 - 0.2]
@@ -756,14 +733,12 @@ const SmartFlowRender = (function() {
             pilar.castShadow = true; pilar.receiveShadow = true;
             group.add(pilar);
             
-            // Inserto metálico (placa de anclaje)
             var inserto = new THREE.Mesh(
                 new THREE.BoxGeometry(0.3, 0.04, 0.3), MaterialLibrary.carbonSteelDark
             );
             inserto.position.set(pos[0], h * 0.02, pos[1]);
             group.add(inserto);
             
-            // Placa base
             var placa = new THREE.Mesh(
                 new THREE.BoxGeometry(0.35, 0.03, 0.35), MaterialLibrary.carbonSteelDark
             );
@@ -771,7 +746,6 @@ const SmartFlowRender = (function() {
             group.add(placa);
         });
         
-        // Escalera de acceso
         var escW = 0.6;
         var escH = h * 3 + h;
         var escAngle = Math.atan2(escH, h * 2);
@@ -798,16 +772,12 @@ const SmartFlowRender = (function() {
         return group;
     }
     
-    // ═══════════════════════════════════════════
-    // PLATAFORMA METÁLICA MEJORADA
-    // ═══════════════════════════════════════════
     function createPlataformaMetalica(eq) {
         var w = toM(eq.largo || 6000);
         var d = toM(eq.ancho || 3000);
         var h = toM(eq.altura || 400);
         var group = new THREE.Group();
         
-        // Parrilla metálica (grating)
         for (var gx = -w/2 + 0.15; gx <= w/2 - 0.15; gx += 0.22) {
             var bar = new THREE.Mesh(
                 new THREE.BoxGeometry(0.012, h * 0.12, d * 0.96), MaterialLibrary.gratingMetal
@@ -816,7 +786,6 @@ const SmartFlowRender = (function() {
             group.add(bar);
         }
         
-        // Rodapié perimetral
         var toeMat = MaterialLibrary.carbonSteelDark;
         [-1, 1].forEach(function(side) {
             var toeZ = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.04), toeMat);
@@ -827,7 +796,6 @@ const SmartFlowRender = (function() {
             group.add(toeX);
         });
         
-        // Vigas principales
         var vigaMat = MaterialLibrary.carbonSteelDark;
         [-1, 1].forEach(function(side) {
             var viga = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.4, 0.08), vigaMat);
@@ -836,7 +804,6 @@ const SmartFlowRender = (function() {
             group.add(viga);
         });
         
-        // Columnas con placas
         var posCols = [
             [-w/2 + 0.2, -d/2 + 0.2], [w/2 - 0.2, -d/2 + 0.2],
             [w/2 - 0.2, d/2 - 0.2], [-w/2 + 0.2, d/2 - 0.2]
@@ -856,7 +823,6 @@ const SmartFlowRender = (function() {
             group.add(placaBase);
         });
         
-        // Arriostramientos diagonales
         var braceGeoZ = new THREE.BoxGeometry(0.05, h * 2.2, 0.05);
         [-1, 1].forEach(function(side) {
             var brace = new THREE.Mesh(braceGeoZ, vigaMat);
@@ -865,14 +831,12 @@ const SmartFlowRender = (function() {
             group.add(brace);
         });
         
-        // Conexión a tierra
         var groundWire = new THREE.Mesh(
             new THREE.CylinderGeometry(0.01, 0.01, h * 0.5, 6), MaterialLibrary.stemChrome
         );
         groundWire.position.set(w/2 - 0.1, -h * 1.5, d/2 - 0.1);
         group.add(groundWire);
         
-        // Barandas con pasamanos y postes
         if (eq.baranda !== false) {
             var barandaH = 1.1;
             var barandaMat = MaterialLibrary.safetyYellow;
@@ -904,7 +868,6 @@ const SmartFlowRender = (function() {
             }
         }
         
-        // Escalera de acceso metálica
         var escW = 0.55;
         var escH = h * 3;
         var escAngle = Math.atan2(escH, h * 2.5);
@@ -939,9 +902,6 @@ const SmartFlowRender = (function() {
         return createPlataformaMetalica(eq);
     }
     
-    // ═══════════════════════════════════════════
-    // BOX EQUIP (genérico para osmosis, etc.)
-    // ═══════════════════════════════════════════
     function createBoxEquip(eq) {
         var specMat = getSpecMaterial(eq.spec || 'ACERO_150_RF');
         var mat = MaterialLibrary.clone(specMat);
@@ -1002,9 +962,6 @@ const SmartFlowRender = (function() {
         return createBoxEquip(eq);
     }
     
-    // ═══════════════════════════════════════════
-    // TUBERÍAS CON MATERIAL PBR
-    // ═══════════════════════════════════════════
     function createPipeMesh(line) {
         var pts = _core.getLinePoints(line) || line._cachedPoints || line.points3D || [];
         if (pts.length < 2) return null;
@@ -1064,9 +1021,7 @@ const SmartFlowRender = (function() {
         
         return pipe;
     }
-    // ═══════════════════════════════════════════
-    // FITTINGS UNIFICADOS (PPR / CS / PVC)
-    // ═══════════════════════════════════════════
+
     function createFitting(comp, pos3D, dirVec, size, compType, spec) {
         var type = (compType || comp.type || '').toUpperCase();
         var s = size;
@@ -1231,7 +1186,6 @@ const SmartFlowRender = (function() {
                 var bellows = new THREE.Mesh(new THREE.TorusGeometry(s * 0.52, s * 0.06, 12, 24), matDark);
                 bellows.position.x = -s * 0.45 + b * s * 0.3; bellows.rotation.y = Math.PI / 2; group.add(bellows);
             }
-            // Tirantes de ajuste
             for (var ti = 0; ti < 2; ti++) {
                 var tieRod = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.02, s * 0.02, s * 1.4, 8), MaterialLibrary.stemChrome);
                 tieRod.rotation.z = Math.PI / 2;
@@ -1349,9 +1303,6 @@ const SmartFlowRender = (function() {
         return group;
     }
 
-    // ═══════════════════════════════════════════
-    // VÁLVULAS DETALLADAS (GATE, BALL, BUTTERFLY, GLOBE, CHECK, DIAFRAGMA)
-    // ═══════════════════════════════════════════
     function createGateValve(pos3D, dirVec, s, spec) {
         var specMat = getSpecMaterial(spec); var mat = MaterialLibrary.clone(specMat);
         var matDark = MaterialLibrary.clone(specMat);
@@ -1532,9 +1483,6 @@ const SmartFlowRender = (function() {
         return fallbackGroup;
     }
 
-    // ═══════════════════════════════════════════
-    // INSTRUMENTOS
-    // ═══════════════════════════════════════════
     function createInstrument(comp, pos3D, dirVec, size, compType) {
         var type = (compType || comp.type || '').toUpperCase();
         var s = size;
@@ -1749,4 +1697,3 @@ const SmartFlowRender = (function() {
 })();
 
 window.SmartFlowRender = SmartFlowRender;
-
