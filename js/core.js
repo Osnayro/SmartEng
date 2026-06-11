@@ -1,5 +1,11 @@
 
+// ============================================================
+// SMARTFLOW CORE v5.6 - Motor de Datos de Ingeniería
 // Archivo: js/core.js
+// Soporte: Modo dual 2D/3D, API unificada, índices mejorados
+// Correcciones v5.6: Métodos removeEquipment/removeLine expuestos,
+//                    rebuildIndexes público, _saveState público
+// ============================================================
 
 const SmartFlowCore = (function() {
     
@@ -50,6 +56,7 @@ const SmartFlowCore = (function() {
         }
     };
 
+    // Índices unificados para búsqueda rápida
     let _equiposMap = new Map();
     let _linesMap = new Map();
     let _allObjectsMap = new Map();
@@ -458,6 +465,9 @@ const SmartFlowCore = (function() {
         return result ? result.punto : null;
     }
 
+    // ================================================================
+    // API PÚBLICA
+    // ================================================================
     return {
         init: function(notifyFn, renderFn, propertyPanelFn) {
             _notifyUI = notifyFn || _notifyUI;
@@ -471,6 +481,7 @@ const SmartFlowCore = (function() {
         off: off,
         emit: emit,
 
+        // ✅ MÉTODOS DE GUARDADO/REESTABLECIMIENTO (PÚBLICOS)
         _saveState: function() {
             const state = _deepClone({ equipos: _db.equipos, lines: _db.lines });
             _history.past.push(state);
@@ -621,6 +632,7 @@ const SmartFlowCore = (function() {
             return JSON.stringify({ equipos: _db.equipos, lines: _db.lines });
         },
 
+        // ✅ NUEVOS MÉTODOS DE ELIMINACIÓN SEGURA
         removeEquipment: function(tag) {
             const eq = _equiposMap.get(tag);
             if (!eq) {
@@ -628,8 +640,10 @@ const SmartFlowCore = (function() {
                 return false;
             }
             
+            // Guardar estado para undo
             this._saveState();
             
+            // Encontrar líneas conectadas
             const lineasConectadas = _db.lines.filter(function(line) {
                 return (line.origin && line.origin.equipTag === tag) ||
                        (line.destination && line.destination.equipTag === tag) ||
@@ -637,6 +651,7 @@ const SmartFlowCore = (function() {
                        (line.destination && line.destination.objTag === tag);
             });
             
+            // Liberar puertos en los otros extremos
             lineasConectadas.forEach(function(linea) {
                 const otroExtremo = (linea.origin && (linea.origin.equipTag === tag || linea.origin.objTag === tag)) ? 
                     linea.destination : linea.origin;
@@ -655,14 +670,18 @@ const SmartFlowCore = (function() {
                 }
             });
             
+            // Eliminar líneas conectadas
             _db.lines = _db.lines.filter(function(line) {
                 return !lineasConectadas.includes(line);
             });
             
+            // Eliminar equipo
             _db.equipos = _db.equipos.filter(function(e) { return e.tag !== tag; });
             
+            // Reconstruir índices
             rebuildIndexes();
             
+            // Sincronizar
             syncPhysicalData();
             _renderUI();
             
@@ -680,8 +699,10 @@ const SmartFlowCore = (function() {
                 return false;
             }
             
+            // Guardar estado para undo
             this._saveState();
             
+            // Liberar puerto origen
             if (line.origin && (line.origin.equipTag || line.origin.objTag)) {
                 const origenTag = line.origin.equipTag || line.origin.objTag;
                 const objOrigen = findObjectByTag(origenTag);
@@ -696,6 +717,7 @@ const SmartFlowCore = (function() {
                 }
             }
             
+            // Liberar puerto destino
             if (line.destination && (line.destination.equipTag || line.destination.objTag)) {
                 const destinoTag = line.destination.equipTag || line.destination.objTag;
                 const objDestino = findObjectByTag(destinoTag);
@@ -710,10 +732,13 @@ const SmartFlowCore = (function() {
                 }
             }
             
+            // Eliminar línea
             _db.lines = _db.lines.filter(function(l) { return l.tag !== tag; });
             
+            // Reconstruir índices
             rebuildIndexes();
             
+            // Sincronizar
             syncPhysicalData();
             _renderUI();
             
