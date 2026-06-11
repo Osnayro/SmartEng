@@ -1,24 +1,23 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SmartEngp | AcQuaBlue - Nivel 2</title>
+    <title>SmartEngp | AcQuaBlue</title>
     
-    <!-- Dependencias externas -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <!-- Import Map para Three.js r160 -->
+    <!-- Three.js r160 con Import Map -->
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
             }
         }
     </script>
+    
+    <!-- Librerías de exportación -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
         :root {
@@ -30,17 +29,9 @@
             --toolbar-bg: #0f172a;
             --button-bg: #1e293b;
             --button-border: #334155;
-            --success: #22c55e;
-            --error: #ef4444;
-            --warning: #f59e0b;
-            --gold: #ffd700;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             background: var(--primary-bg);
@@ -49,624 +40,205 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            font-family: 'Segoe UI', 'Inter', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* SPLASH SCREEN */
         #splash-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
             background: radial-gradient(circle at center, #10172a 0%, #020617 100%);
             z-index: 10000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
             transition: opacity 0.8s ease, visibility 0.8s;
         }
-        .splash-content {
-            text-align: center;
-            width: 350px;
-        }
-        .corporate-header {
-            margin-bottom: 25px;
-        }
-        .company-name {
-            font-size: 11px;
-            letter-spacing: 3px;
-            color: #fff;
-            opacity: 0.6;
-            text-transform: uppercase;
-            display: block;
-        }
-        .powered-by {
-            font-size: 8px;
-            color: var(--accent-cyan);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+        .splash-content { text-align: center; width: 350px; }
+        .corporate-header { margin-bottom: 25px; }
+        .company-name { font-size: 11px; letter-spacing: 3px; color: #fff; opacity: 0.6; text-transform: uppercase; display: block; }
+        .powered-by { font-size: 8px; color: var(--accent-cyan); letter-spacing: 1px; text-transform: uppercase; }
         .hex-container {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 30px;
+            width: 120px; height: 120px; margin: 0 auto 30px;
             border: 1px solid var(--accent-cyan);
             clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
             background: rgba(0, 242, 255, 0.05);
             animation: hex-pulse 2.5s infinite ease-in-out;
         }
-        .hex-container img {
-            width: 70%;
-            filter: drop-shadow(0 0 10px #00f2ff);
-        }
+        .hex-container img { width: 70%; filter: drop-shadow(0 0 10px #00f2ff); }
         @keyframes hex-pulse {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: 0 0 15px rgba(0,242,255,0.1);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 0 30px rgba(0,242,255,0.3);
-            }
+            0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(0,242,255,0.1); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(0,242,255,0.3); }
         }
-        .splash-title {
-            font-size: 30px;
-            letter-spacing: 8px;
-            color: white;
-            font-weight: 900;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-        .splash-subtitle {
-            color: var(--accent-cyan);
-            letter-spacing: 4px;
-            font-size: 10px;
-            margin-bottom: 35px;
-            opacity: 0.8;
-            font-weight: bold;
-        }
-        .loading-bar-container {
-            width: 200px;
-            height: 1px;
-            background: rgba(255,255,255,0.1);
-            margin: 0 auto 15px;
-            overflow: hidden;
-        }
-        .loading-bar-fill {
-            width: 0%;
-            height: 100%;
-            background: var(--accent-cyan);
-            animation: fill-bar 4.5s forwards cubic-bezier(0.19, 1, 0.22, 1);
-        }
-        .splash-status {
-            font-family: monospace;
-            font-size: 9px;
-            color: #64748b;
-            text-transform: uppercase;
-            margin-bottom: 50px;
-            height: 15px;
-        }
-        .author-footer {
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 20px;
-        }
-        .leader-by {
-            font-size: 9px;
-            color: #fff;
-            opacity: 0.5;
-            text-transform: uppercase;
-        }
-        .engineer-name {
-            font-size: 13px;
-            font-weight: bold;
-            color: #fff;
-            display: block;
-            letter-spacing: 1.5px;
-            margin-top: 4px;
-        }
-        @keyframes fill-bar {
-            0% { width: 0%; }
-            100% { width: 100%; }
-        }
-        .splash-hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
+        .splash-title { font-size: 30px; letter-spacing: 8px; color: white; font-weight: 900; text-transform: uppercase; margin-bottom: 5px; }
+        .splash-subtitle { color: var(--accent-cyan); letter-spacing: 4px; font-size: 10px; margin-bottom: 35px; opacity: 0.8; font-weight: bold; }
+        .loading-bar-container { width: 200px; height: 1px; background: rgba(255,255,255,0.1); margin: 0 auto 15px; overflow: hidden; }
+        .loading-bar-fill { width: 0%; height: 100%; background: var(--accent-cyan); animation: fill-bar 4.5s forwards cubic-bezier(0.19, 1, 0.22, 1); }
+        .splash-status { font-family: monospace; font-size: 9px; color: #64748b; text-transform: uppercase; margin-bottom: 50px; height: 15px; }
+        .author-footer { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+        .leader-by { font-size: 9px; color: #fff; opacity: 0.5; text-transform: uppercase; }
+        .engineer-name { font-size: 13px; font-weight: bold; color: #fff; display: block; letter-spacing: 1.5px; margin-top: 4px; }
+        @keyframes fill-bar { 0% { width: 0%; } 100% { width: 100%; } }
+        .splash-hidden { opacity: 0; visibility: hidden; }
 
-        /* WELCOME PANEL */
         #welcome-panel {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--primary-bg);
-            z-index: 9000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary-bg); z-index: 9000;
+            display: flex; justify-content: center; align-items: center;
             transition: opacity 0.6s ease, visibility 0.6s;
         }
         .welcome-container {
-            width: 600px;
-            padding: 40px;
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid var(--accent-cyan);
-            border-radius: 16px;
-            backdrop-filter: blur(12px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-            text-align: center;
+            width: 600px; padding: 40px; background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--accent-cyan); border-radius: 16px;
+            backdrop-filter: blur(12px); box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center;
         }
-        .home-logo-wrapper {
-            margin-bottom: 25px;
-        }
-        .home-logo-img {
-            width: 130px;
-            margin: 10px 0 25px;
-            filter: drop-shadow(0 0 15px rgba(0,242,255,0.4));
-        }
-        .header-names {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 35px;
-            text-align: left;
-        }
-        .corp-name {
-            color: var(--accent-cyan);
-            font-size: 16px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .user-name {
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            text-align: right;
-        }
-        .button-group {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
+        .home-logo-wrapper { margin-bottom: 25px; }
+        .home-logo-img { width: 130px; margin: 10px 0 25px; filter: drop-shadow(0 0 15px rgba(0,242,255,0.4)); }
+        .header-names { display: flex; justify-content: space-between; margin-bottom: 35px; text-align: left; }
+        .corp-name { color: var(--accent-cyan); font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+        .user-name { color: #fff; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; text-align: right; }
+        .button-group { display: flex; flex-direction: column; gap: 16px; }
         .welcome-btn {
-            background: transparent;
-            border: 1px solid var(--accent-cyan);
-            color: var(--accent-cyan);
-            padding: 16px 24px;
-            font-size: 18px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
+            background: transparent; border: 1px solid var(--accent-cyan); color: var(--accent-cyan);
+            padding: 16px 24px; font-size: 18px; font-weight: bold; text-transform: uppercase;
+            letter-spacing: 3px; border-radius: 8px; cursor: pointer; transition: all 0.3s;
         }
-        .welcome-btn:hover {
-            background: var(--accent-cyan);
-            color: #000;
-        }
-        .welcome-btn.secondary {
-            border-color: #64748b;
-            color: #94a3b8;
-        }
-        .welcome-btn.secondary:hover {
-            background: #334155;
-            border-color: #94a3b8;
-            color: white;
-        }
-        .welcome-hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
+        .welcome-btn:hover { background: var(--accent-cyan); color: #000; }
+        .welcome-btn.secondary { border-color: #64748b; color: #94a3b8; }
+        .welcome-btn.secondary:hover { background: #334155; border-color: #94a3b8; color: white; }
+        .welcome-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
-        /* PROJECT MODAL */
         #project-name-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 9500;
-            display: none;
-            justify-content: center;
-            align-items: center;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9500; display: none;
+            justify-content: center; align-items: center;
         }
         .modal-content {
-            width: 400px;
-            padding: 30px;
-            background: var(--panel-bg);
-            border: 1px solid var(--accent-cyan);
-            border-radius: 16px;
-            text-align: center;
+            width: 400px; padding: 30px; background: var(--panel-bg);
+            border: 1px solid var(--accent-cyan); border-radius: 16px; text-align: center;
         }
-        .modal-content h3 {
-            color: var(--accent-cyan);
-            margin-bottom: 20px;
-            font-size: 18px;
-        }
-        .modal-content input {
-            width: 100%;
-            padding: 12px;
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: white;
-            border-radius: 8px;
-            margin-bottom: 25px;
-        }
-        .modal-actions {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-        .modal-btn {
-            padding: 10px 24px;
-            background: var(--accent-blue);
-            border: none;
-            color: white;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .modal-btn.cancel {
-            background: #334155;
-        }
+        .modal-content h3 { color: var(--accent-cyan); margin-bottom: 20px; font-size: 18px; }
+        .modal-content input { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; margin-bottom: 25px; }
+        .modal-actions { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 10px 24px; background: var(--accent-blue); border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .modal-btn.cancel { background: #334155; }
 
-        /* TOOLBAR */
         .toolbar {
-            background: var(--toolbar-bg);
-            padding: 6px 12px;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 6px;
-            border-bottom: 1px solid var(--accent-blue);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-            z-index: 500;
-            min-height: 42px;
+            background: var(--toolbar-bg); padding: 6px 12px; display: flex;
+            align-items: center; flex-wrap: wrap; gap: 6px;
+            border-bottom: 1px solid var(--accent-blue); box-shadow: 0 2px 10px rgba(0,0,0,0.4); z-index: 500;
         }
-        .toolbar-logo {
-            display: flex;
-            align-items: center;
-            margin-right: 10px;
-        }
-        .toolbar-logo img {
-            height: 24px;
-            margin-right: 6px;
-        }
-        .toolbar-title {
-            color: var(--accent-cyan);
-            font-size: 16px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .nivel2-badge {
-            background: linear-gradient(135deg, #ffd700, #ff8c00);
-            color: #000;
-            font-size: 8px;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 20px;
-            margin-left: 8px;
-            letter-spacing: 0.5px;
-        }
+        .toolbar-logo { display: flex; align-items: center; margin-right: 10px; }
+        .toolbar-logo img { height: 24px; margin-right: 6px; }
+        .toolbar-title { color: var(--accent-cyan); font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
 
         button {
-            background: var(--button-bg);
-            border: 1px solid var(--button-border);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: uppercase;
-            white-space: nowrap;
+            background: var(--button-bg); border: 1px solid var(--button-border); color: white;
+            padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; text-transform: uppercase; white-space: nowrap;
         }
-        button:hover {
-            background: var(--accent-blue);
-            border-color: var(--accent-cyan);
-        }
-        button.active {
-            background: var(--accent-cyan);
-            color: #000;
-            border-color: var(--accent-cyan);
-        }
-        .separator {
-            width: 1px;
-            height: 20px;
-            background: var(--button-border);
-            margin: 0 4px;
-        }
+        button:hover { background: var(--accent-blue); border-color: var(--accent-cyan); }
+        button.active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); }
 
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
+        /* Botones de I/O con colores distintivos */
+        #btnExportPCF { border-color: #10b981; color: #10b981; }
+        #btnExportPCF:hover { background: #10b981; color: #000; border-color: #10b981; }
+        #btnImportPCF { border-color: #f59e0b; color: #f59e0b; }
+        #btnImportPCF:hover { background: #f59e0b; color: #000; border-color: #f59e0b; }
+
+        .dropdown { position: relative; display: inline-block; }
         .dropdown-content {
-            display: none;
-            position: absolute;
-            background: var(--panel-bg);
-            min-width: 180px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.3);
-            z-index: 1;
-            border: 1px solid var(--accent-cyan);
-            border-radius: 4px;
-            backdrop-filter: blur(8px);
-            right: 0;
+            display: none; position: absolute; background: var(--panel-bg);
+            min-width: 160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1; border: 1px solid var(--accent-cyan); border-radius: 4px;
+            backdrop-filter: blur(8px); right: 0;
         }
-        .dropdown-content button {
-            width: 100%;
-            text-align: left;
-            border: none;
-            border-radius: 0;
-        }
-        .dropdown.open > .dropdown-content {
-            display: block;
+        .dropdown-content button { width: 100%; text-align: left; border: none; border-radius: 0; }
+        .dropdown.open > .dropdown-content { display: block; }
+
+        .canvas-container { flex: 1; background: #000; position: relative; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+        canvas:active { cursor: grabbing; }
+
+        #viewer-3d {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none;
         }
 
-        /* MAIN CONTAINER */
-        .main-container {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            background: #000;
-        }
-        #isoCanvas {
-            display: none;
-            width: 100%;
-            height: 100%;
-            cursor: grab;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        #isoCanvas.active {
-            display: block;
-        }
-        #isoCanvas:active {
-            cursor: grabbing;
-        }
-        #three-container {
-            display: none;
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 2;
-        }
-        #three-container.active {
-            display: block;
-        }
-        #three-container canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
-        #annotation-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            z-index: 10;
-            display: none;
-        }
-        #annotation-layer.active {
-            display: block;
-        }
-
-        /* SIDE PANEL */
         #side-panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 300px;
-            max-width: 85vw;
-            max-height: 65vh;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 242, 255, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            z-index: 100;
-            overflow-y: auto;
-            transition: transform 0.3s ease;
+            position: absolute; top: 10px; right: 10px; width: 280px; max-width: 85vw; max-height: 60vh;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 242, 255, 0.3); border-radius: 8px;
+            padding: 12px; z-index: 100; overflow-y: auto; transition: transform 0.3s ease;
         }
-        #side-panel.hidden {
-            transform: translateX(350px);
-        }
-        #side-panel::-webkit-scrollbar {
-            width: 6px;
-        }
-        #side-panel::-webkit-scrollbar-track {
-            background: rgba(0,242,255,0.05);
-        }
-        #side-panel::-webkit-scrollbar-thumb {
-            background: rgba(0,242,255,0.3);
-            border-radius: 3px;
-        }
-        #panel-content {
-            max-height: calc(65vh - 50px);
-            overflow-y: auto;
-        }
-        .prop-group {
-            margin-bottom: 8px;
-        }
-        .prop-label {
-            font-size: 10px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: block;
-        }
-        .prop-value {
-            font-size: 14px;
-            color: #e2e8f0;
-            font-weight: 600;
-        }
-        .port-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            font-size: 11px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .port-open {
-            color: var(--success);
-        }
-        .port-connected {
-            color: var(--accent-cyan);
-        }
+        #side-panel.hidden { transform: translateX(320px); }
+        #panel-content { max-height: calc(60vh - 50px); overflow-y: auto; }
 
-        /* COMMAND PANEL */
         #commandPanel {
-            position: fixed;
-            left: 50%;
-            bottom: 20px;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 550px;
-            background: rgba(15, 23, 42, 0.97);
-            border-radius: 12px;
-            border: 1px solid var(--accent-cyan);
-            z-index: 1000;
-            display: none;
-            backdrop-filter: blur(10px);
-            padding: 10px;
+            position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+            width: 90%; max-width: 500px; background: rgba(15, 23, 42, 0.95);
+            border-radius: 12px; border: 1px solid var(--accent-cyan);
+            z-index: 1000; display: none; backdrop-filter: blur(10px); padding: 10px;
         }
-        .command-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            color: var(--accent-cyan);
-        }
+        .command-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--accent-cyan); }
         textarea {
-            width: 100%;
-            margin: 0;
-            background: #0f0f17;
-            color: #eee;
-            border: 1px solid #3a3a4a;
-            border-radius: 8px;
-            padding: 10px;
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            font-size: 13px;
-            resize: vertical;
+            width: 100%; margin: 0; background: #0f0f17; color: #eee;
+            border: 1px solid #3a3a4a; border-radius: 8px; padding: 10px;
+            font-family: 'Courier New', monospace; font-size: 13px; resize: vertical;
         }
-        .command-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .history-indicator {
-            font-size: 10px;
-            color: #64748b;
-            margin-top: 4px;
-            text-align: right;
+        .command-buttons { display: flex; gap: 8px; margin-top: 8px; }
+        .history-indicator { font-size: 10px; color: #64748b; margin-top: 4px; text-align: right; }
+
+        .notification {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+            background: #238636; padding: 8px 16px; border-radius: 8px;
+            z-index: 2000; display: none; font-weight: bold; font-size: 13px; pointer-events: none;
         }
 
-        /* STATUS BAR */
         .status-bar {
-            position: fixed;
-            bottom: 8px;
-            left: 12px;
-            z-index: 300;
-            background: rgba(2, 6, 23, 0.8);
-            padding: 4px 12px;
-            font-size: 10px;
-            border-radius: 4px;
-            color: var(--accent-cyan);
-            pointer-events: none;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(0,242,255,0.2);
+            position: fixed; bottom: 8px; left: 12px; z-index: 300;
+            background: rgba(2, 6, 23, 0.7); padding: 4px 12px; font-size: 10px;
+            border-radius: 4px; color: var(--accent-cyan); pointer-events: none;
+            backdrop-filter: blur(4px); border: 1px solid rgba(0,242,255,0.2);
         }
 
-        /* FULLSCREEN CONTROLS */
+        .tools-panel {
+            position: fixed; left: 10px; top: 80px; background: rgba(15, 23, 42, 0.9);
+            border-radius: 10px; padding: 6px; z-index: 400; border: 1px solid rgba(0,242,255,0.3);
+            backdrop-filter: blur(6px); display: flex; flex-direction: column; gap: 4px; transition: all 0.3s;
+        }
+        .tools-panel.collapsed #toolsButtons { display: none; }
+        .tools-panel.collapsed { padding: 4px; }
+        #toolsButtons { display: flex; flex-direction: column; gap: 4px; }
+        #toolsButtons button { font-size: 10px; padding: 4px 8px; }
+        .elevation-inline { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+        .elevation-inline span { font-size: 10px; color: var(--accent-cyan); }
+        .elevation-inline button { font-size: 10px; padding: 2px 6px; }
+        .elevation-inline input { width: 60px; background: #0f172a; border: 1px solid #334155; color: white; font-size: 10px; padding: 2px 4px; border-radius: 4px; }
+
         #fullscreen-controls {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            gap: 12px;
+            display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; gap: 12px;
         }
         body.fullscreen-mode .toolbar,
         body.fullscreen-mode #side-panel,
         body.fullscreen-mode #commandPanel,
-        body.fullscreen-mode .status-bar {
-            display: none !important;
-        }
-        body.fullscreen-mode .main-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-        }
-        body.fullscreen-mode #fullscreen-controls {
-            display: flex !important;
-        }
+        body.fullscreen-mode .status-bar,
+        body.fullscreen-mode .tools-panel,
+        body.fullscreen-mode #notification { display: none !important; }
+        body.fullscreen-mode .canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        body.fullscreen-mode #fullscreen-controls { display: flex !important; }
 
-        /* TOAST NOTIFICATIONS */
-        #sf-toast-container {
-            position: fixed;
-            z-index: 10000;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            bottom: 70px;
-            right: 20px;
-        }
-        .sf-toast {
-            pointer-events: auto;
-            animation: sf-slide-in 0.3s ease-out;
-        }
-        @keyframes sf-slide-in {
-            from {
-                opacity: 0;
-                transform: translateX(100px) scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0) scale(1);
-            }
-        }
+        .label-3d { transition: opacity 0.3s ease; user-select: none; }
+        .label-3d:hover { transform: scale(1.08); z-index: 30 !important; }
 
         @media (max-width: 768px) {
-            .toolbar button {
-                font-size: 9px;
-                padding: 4px 6px;
-            }
-            .toolbar-title {
-                font-size: 14px;
-            }
-            #side-panel {
-                width: 260px;
-                right: 5px;
-            }
-            #commandPanel {
-                width: 95%;
-            }
+            .toolbar button { font-size: 9px; padding: 4px 6px; }
+            .toolbar-title { font-size: 14px; }
+            #side-panel { width: 260px; right: 5px; }
+            .tools-panel { top: 70px; left: 4px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- SPLASH SCREEN -->
     <div id="splash-screen">
         <div class="splash-content">
             <div class="corporate-header">
@@ -677,11 +249,9 @@
                 <img src="img/logo.PNG" alt="Logo" onerror="this.style.display='none'">
             </div>
             <h1 class="splash-title">SmartEngp</h1>
-            <p class="splash-subtitle">INGENIERÍA INTELIGENTE 2D/3D</p>
-            <div class="loading-bar-container">
-                <div class="loading-bar-fill"></div>
-            </div>
-            <div class="splash-status" id="splash-status">Inicializando motores gráficos...</div>
+            <p class="splash-subtitle">INGENIERÍA INTELIGENTE</p>
+            <div class="loading-bar-container"><div class="loading-bar-fill"></div></div>
+            <div class="splash-status" id="splash-status">Inicializando protocolos SmartEngp...</div>
             <div class="author-footer">
                 <span class="leader-by">Ingeniero Líder de Proyecto:</span>
                 <span class="engineer-name">Ing. Osnay Romero</span>
@@ -689,7 +259,6 @@
         </div>
     </div>
 
-    <!-- WELCOME PANEL -->
     <div id="welcome-panel">
         <div class="welcome-container">
             <div class="home-logo-wrapper">
@@ -706,7 +275,6 @@
         </div>
     </div>
 
-    <!-- PROJECT NAME MODAL -->
     <div id="project-name-modal">
         <div class="modal-content">
             <h3>Nuevo Proyecto</h3>
@@ -718,132 +286,237 @@
         </div>
     </div>
 
-    <!-- TOOLBAR -->
     <div class="toolbar" role="toolbar">
         <div class="toolbar-logo">
             <img src="img/logo.PNG" alt="Logo" style="height: 24px;" onerror="this.style.display='none'">
             <span class="toolbar-title">SmartEngp</span>
-            <span class="nivel2-badge">NIVEL 2</span>
         </div>
         
         <div class="dropdown">
             <button id="btnFileMenu">📂 Archivo</button>
             <div class="dropdown-content">
-                <button id="btnNew">➕ Nuevo</button>
                 <button id="btnOpen">📂 Abrir</button>
                 <button id="btnSave">💾 Guardar</button>
-                <button id="btnExportProject">📤 Exportar JSON</button>
-                <button id="btnImportProject">📥 Importar JSON</button>
-                <button id="btnExportPCF">📦 Exportar PCF</button>
-                <button id="btnImportPCF">📂 Importar PCF</button>
+                <button id="btnExportProject">📤 Exportar Proy</button>
+                <button id="btnImportProject">📥 Importar Proy</button>
             </div>
         </div>
         
-        <span class="separator"></span>
+        <button id="btnReset">🔄 Centrar</button>
+        <button id="btnFullscreen">⛶ Full</button>
         
-        <button id="btnUndo" title="Deshacer (Ctrl+Shift+U)">↩️</button>
-        <button id="btnRedo" title="Rehacer (Ctrl+Shift+Y)">↪️</button>
+        <button id="btn-mode-2d" class="active" title="Vista 2D Isométrica">📐 2D</button>
+        <button id="btn-mode-3d" title="Vista 3D">🧊 3D</button>
         
-        <span class="separator"></span>
+        <button id="btnCommand">🤖 Cmd</button>
         
-        <select id="tres-de" style="background:var(--button-bg); color:white; border:1px solid var(--button-border); padding:5px 8px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:600;">
-            <option value="3d" selected>🔷 3D (Nivel 2)</option>
-            <option value="2d">⚫ 2D</option>
-        </select>
-        
-        <span class="separator"></span>
-        
-        <button id="btnViewIso" title="Vista Isométrica / Centrar">🔷 ISO</button>
-        <button id="btnViewTop" title="Vista Planta">🔽 TOP</button>
-        <button id="btnViewFront" title="Vista Frontal">▶️ FRONT</button>
-        <button id="btnZoomFit" title="Auto Center / Zoom Fit">🔍 FIT</button>
-        
-        <span class="separator"></span>
-        
-        <button id="btnCommand" title="Consola de Comandos (Ctrl+Shift+C)">🤖 CMD</button>
-        <button id="btnFullscreen" title="Pantalla Completa">⛶</button>
-        <button id="btnVoice" title="Activar/Desactivar Voz">🔊</button>
-        
-        <span class="separator"></span>
-        
-        <button id="btnSummary" title="Resumen del Proyecto">📋 RESUMEN</button>
-        
-        <span class="separator"></span>
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BOTONES DE INTEROPERABILIDAD (I/O)         -->
+        <!-- ═══════════════════════════════════════════ -->
+        <button id="btnExportPCF" title="Exportar PCF (SmartPlant, Aveva, AutoCAD)">📥 PCF</button>
+        <button id="btnImportPCF" title="Importar desde archivo PCF">📤 PCF</button>
+        <button id="btnMTO" title="Exportar Lista de Materiales">📊 MTO</button>
+        <button id="btnPDF">📄 PDF</button>
+        <button id="btnTogglePanels" title="Mostrar/ocultar paneles">👁️</button>
         
         <div class="dropdown">
-            <button id="btnToolsMenu">🔧 Equipos</button>
+            <button id="btnMoreMenu">⚙️ +</button>
             <div class="dropdown-content">
-                <button id="btnAddTank">🏭 Tanque Vertical</button>
-                <button id="btnAddPump">⚙️ Bomba Centrífuga</button>
-                <button id="btnAddExchanger">🌡️ Intercambiador</button>
-                <button id="btnAddVessel">🛢️ Tanque Horizontal</button>
-                <button id="btnAddPlatform">🏗️ Plataforma</button>
+                <button id="btnAddTank">🏭 Tanque</button>
+                <button id="btnAddPump">⚙️ Bomba</button>
+                <button id="btnUndo">↩️ Undo</button>
+                <button id="btnRedo">↪️ Redo</button>
+                <button id="btnVoice">🔊 Voz ON</button>
+                <button id="btnApplyNorm">📐 Normas</button>
+                <button id="btnSpeakSummary">📢 Resumen</button>
+                <button id="btnRecalc">🔄 Recalcular</button>
             </div>
         </div>
-        
-        <button id="btnMTO" title="Exportar Lista de Materiales">📊 MTO</button>
-        <button id="btnPDF" title="Exportar PDF Isométrico">📄 PDF</button>
-        <button id="btnAudit" title="Auditar Modelo">🔍 AUDIT</button>
     </div>
 
-    <!-- MAIN CONTAINER -->
-    <div class="main-container">
+    <div class="canvas-container" id="canvas-container">
         <canvas id="isoCanvas"></canvas>
-        <div id="three-container" class="active"></div>
-        
+        <div id="viewer-3d"></div>
         <div id="side-panel" class="property-panel hidden">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span style="color:var(--accent-cyan); font-weight:bold;">PROPIEDADES TÉCNICAS</span>
-                <button id="btnClosePanel" style="background:none;border:none;color:white;font-size:18px;padding:0;width:24px;cursor:pointer;">×</button>
+                <button id="btnClosePanel" style="background:none;border:none;color:white;font-size:18px;padding:0;width:24px;">×</button>
             </div>
-            <div id="panel-content">
-                <p style="color:#64748b; font-size:12px;">Seleccione un elemento en el visor</p>
-            </div>
+            <div id="panel-content"><p class="empty-msg">Seleccione un elemento para ver sus detalles</p></div>
         </div>
     </div>
 
-    <!-- COMMAND PANEL -->
+    <!-- Panel de comandos -->
     <div id="commandPanel" class="command-panel">
         <div class="command-header">
-            <strong>🤖 Consola de Comandos IA</strong>
-            <button id="closeCommand" style="background:none;border:none;color:white;font-size:20px;padding:0;width:30px;cursor:pointer;">✖</button>
+            <strong>🤖 Comandos IA</strong>
+            <button id="closeCommand" style="background:none;border:none;color:white;font-size:20px;padding:0;width:30px;">✖</button>
         </div>
-        <textarea id="commandText" rows="3" placeholder="Ej: create tank TK-01 at (5000,0,0) diam 2000 height 3000&#10;Ej: connect TK-01:N1 to P-01:SUC diameter 4&#10;Escribe help para ver todos los comandos"></textarea>
+        <textarea id="commandText" rows="3" placeholder="Ej: conectar TK-01 N1 to B-01 SUC diametro 3&#10;Ej: crear tanque_v TK-02 at (3000,1450,0) diam 2000 altura 2500&#10;Ej: export pcf | import pcf | export mto"></textarea>
         <div class="history-indicator" id="historyIndicator"></div>
         <div class="command-buttons">
-            <button id="runCommands">▶ Ejecutar</button>
-            <button id="clearCommand">🗑 Limpiar</button>
+            <button id="runCommands">Ejecutar</button>
+            <button id="clearCommand">Limpiar</button>
         </div>
     </div>
 
-    <!-- STATUS BAR -->
-    <div class="status-bar" id="statusMsg">SISTEMA LISTO | SmartEngp 2D/3D - Nivel 2</div>
+    <div id="notification" class="notification"></div>
 
-    <!-- FULLSCREEN CONTROLS -->
-    <div id="fullscreen-controls">
-        <button id="btnFullscreenCenter" style="padding:12px 20px; border-radius:30px; background:var(--accent-cyan); color:#000; font-weight:bold; border:none;">🔄 Centrar</button>
-        <button id="btnFullscreenExit" style="padding:12px 20px; border-radius:30px; background:#ef4444; color:white; font-weight:bold; border:none;">✕ Salir Fullscreen</button>
+    <div class="status-bar" id="statusMsg">SISTEMA LISTO | SmartEngp</div>
+
+    <div class="tools-panel" id="toolsPanel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:10px; color:var(--accent-cyan);">HERRAMIENTAS</span>
+            <button id="toolToggleHide" style="padding:2px 6px; font-size:10px; background:none; border:1px solid #334155;">−</button>
+        </div>
+        <div id="toolsButtons">
+            <button id="toolSelect" class="active">🔍 Seleccionar</button>
+            <button id="toolMoveEq">✋ Mover equipo</button>
+            <button id="toolEditPipe">✏️ Editar tubería</button>
+            <button id="toolAddPoint">➕ Añadir punto</button>
+            <div class="elevation-inline">
+                <span>📐 Elev:</span>
+                <button id="btnElev0" data-level="0">0</button>
+                <button id="btnElev2500" data-level="2500">2.5m</button>
+                <button id="btnElev5000" data-level="5000">5.0m</button>
+                <input type="number" id="customElev" value="0" step="100" style="width:60px;">
+                <button id="btnSetElev">Set</button>
+            </div>
+        </div>
     </div>
 
-    <!-- SCRIPTS: CARGA DE THREE.JS r160 CON EXPOSICIÓN GLOBAL -->
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        
-        window.THREE = THREE;
-        window.OrbitControls = OrbitControls;
-        
-        console.log('✅ Three.js r160 cargado - Versi\u00f3n:', THREE.REVISION);
-        
-        const script = document.createElement('script');
-        script.src = 'js/main.js';
-        script.onload = function() {
-            console.log('✅ Aplicaci\u00f3n SmartEngp cargada correctamente');
-        };
-        script.onerror = function() {
-            console.error('❌ Error cargando la aplicaci\u00f3n');
-        };
-        document.body.appendChild(script);
+    <div id="fullscreen-controls">
+        <button id="btnFullscreenCenter" style="padding:12px 20px; border-radius:30px; background:var(--accent-cyan); color:#000; font-weight:bold; border:none;">🔄 Centrar</button>
+        <button id="btnFullscreenExit" style="padding:12px 20px; border-radius:30px; background:#ef4444; color:white; font-weight:bold; border:none;">✕ Salir</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SCRIPTS                                                   -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    
+    <!-- Módulos 2.5D -->
+    <script src="js/core.js"></script>
+    <script src="js/catalog.js"></script>
+    <script src="js/router.js"></script>
+    
+    <!-- Módulo de Importación/Exportación (NUEVO) -->
+    <script src="js/modules/smartflow_io.js"></script>
+    
+    <script src="js/renderer.js"></script>
+    <script src="js/commands.js"></script>
+
+    <!-- Sistema de Comandos Adaptativo -->
+    <script src="js/adaptiveCommands.js"></script>
+    <script src="js/adaptiveCommandsUI.js"></script>
+
+    <!-- Módulos 3D migrados a r160 (type="module") -->
+    <script type="module" src="js/ThreeJsEngine.js"></script>
+    <script type="module" src="js/render.js"></script>
+    <script type="module" src="js/SmartFlowLabels3D.js"></script>
+
+    <!-- Main -->
+    <script src="js/main.js"></script>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- CONFIGURACIÓN FINAL                                        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <script>
+        window.voiceEnabled = true;
+        window.currentProjectName = 'Proyecto_SmartEngp';
+
+        document.addEventListener("DOMContentLoaded", function() {
+            
+            // Cerrar panel de propiedades
+            var btnClosePanel = document.getElementById('btnClosePanel');
+            if (btnClosePanel) {
+                btnClosePanel.addEventListener('click', function() { togglePanel(false); });
+            }
+
+            // Botones de elevación
+            ['btnElev0', 'btnElev2500', 'btnElev5000'].forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) {
+                    btn.addEventListener('click', function() {
+                        var level = parseInt(this.getAttribute('data-level'), 10);
+                        setElevation(level);
+                    });
+                }
+            });
+
+            // Conectar botón "🤖 Cmd" al sistema adaptativo
+            var btnCommand = document.getElementById('btnCommand');
+            if (btnCommand) {
+                var newBtn = btnCommand.cloneNode(true);
+                btnCommand.parentNode.replaceChild(newBtn, btnCommand);
+                
+                newBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof AdaptiveCommandUI !== 'undefined') {
+                        AdaptiveCommandUI.openPanel('assisted');
+                    }
+                });
+            }
+
+            // Atajo de teclado Ctrl+Shift+C para abrir comandos
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                    e.preventDefault();
+                    if (typeof AdaptiveCommandUI !== 'undefined') {
+                        AdaptiveCommandUI.openPanel('assisted');
+                    }
+                }
+                if (e.key === 'Escape') {
+                    var overlay = document.getElementById('adaptive-overlay');
+                    if (overlay && typeof AdaptiveCommandUI !== 'undefined') {
+                        AdaptiveCommandUI.closeOverlay();
+                    }
+                }
+            });
+
+            // Conectar botones Undo/Redo del menú "+"
+            var btnUndo = document.getElementById('btnUndo');
+            if (btnUndo) {
+                var newUndo = btnUndo.cloneNode(true);
+                btnUndo.parentNode.replaceChild(newUndo, btnUndo);
+                newUndo.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof SmartFlowCommands !== 'undefined') {
+                        SmartFlowCommands.executeCommand('undo');
+                    }
+                });
+            }
+
+            var btnRedo = document.getElementById('btnRedo');
+            if (btnRedo) {
+                var newRedo = btnRedo.cloneNode(true);
+                btnRedo.parentNode.replaceChild(newRedo, btnRedo);
+                newRedo.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof SmartFlowCommands !== 'undefined') {
+                        SmartFlowCommands.executeCommand('redo');
+                    }
+                });
+            }
+        });
+
+        function setElevation(level) {
+            if (typeof SmartFlowCore !== 'undefined' && SmartFlowCore.setElevation) {
+                SmartFlowCore.setElevation(level);
+            }
+            var elevInput = document.getElementById('customElev');
+            if (elevInput) elevInput.value = level;
+        }
+
+        function togglePanel(show) {
+            var panel = document.getElementById('side-panel');
+            if (panel) {
+                if (show) panel.classList.remove('hidden');
+                else panel.classList.add('hidden');
+            }
+        }
     </script>
 </body>
 </html>
