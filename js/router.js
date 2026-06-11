@@ -1,5 +1,18 @@
 
+// ============================================================
+// SMARTFLOW ROUTER v3.6.4 - Enrutador de Tuberías Inteligente
 // Archivo: js/router.js
+// Compatible: SmartFlowCore v5.6 + SmartFlowCommands v3.6
+// Correcciones v3.6.4:
+//   - Bandas fittingInsertedAtOrigin/Destination sin guion bajo
+//     (no se pierden al serializar en addLine)
+//   - ensureFittings respeta fittingInsertedAtOrigin (no inyecta codo/reductor en origen)
+//   - ensureFittings respeta fittingInsertedAtDestination (no inyecta codo/reductor en destino)
+//   - CODO EN FIN: detecta llegada coaxial, NO inyecta codo innecesario
+//   - insertarAccesorioEnLinea recibe y aplica branchOrientation
+//   - Fallback de generación de puertos si el catálogo no lo hace
+//   - calculateBranchDirection: función auxiliar
+// ============================================================
 
 const SmartFlowRouter = (function() {
     
@@ -13,6 +26,10 @@ const SmartFlowRouter = (function() {
     const ORTHOGONAL_TOLERANCE = 0.0175;
     const MIN_ANGLE_FOR_ELBOW = 3;
     const EXTENSION_DISTANCE = 500;
+
+    // ================================================================
+    //  INICIALIZACIÓN
+    // ================================================================
 
     function ensureInitialized() {
         if (!_core && typeof SmartFlowCore !== 'undefined') _core = SmartFlowCore;
@@ -42,6 +59,10 @@ const SmartFlowRouter = (function() {
         }
         speakText(message);
     }
+
+    // ================================================================
+    //  UTILIDADES GEOMÉTRICAS
+    // ================================================================
 
     function distance(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y, p2.z - p1.z); }
     function addPoints(p1, p2) { return { x: p1.x + p2.x, y: p1.y + p2.y, z: p1.z + p2.z }; }
@@ -156,6 +177,10 @@ const SmartFlowRouter = (function() {
         return { dx: dx / len, dy: dy / len, dz: dz / len };
     }
 
+    // ================================================================
+    //  CONSULTA DE PUERTOS Y DIRECCIONES
+    // ================================================================
+
     function isParametricPortId(portId) {
         if (portId === '0' || portId === '1' || portId === 0 || portId === 1) return false;
         if (String(portId) === '0.0' || String(portId) === '1.0') return false;
@@ -269,6 +294,10 @@ const SmartFlowRouter = (function() {
         return null;
     }
 
+    // ================================================================
+    //  BÚSQUEDA EN CATÁLOGO
+    // ================================================================
+
     function findComponentInCatalog(desiredType, lineMaterial, fallbackTypes) {
         ensureInitialized();
         var catalog = _catalog || window.SmartFlowCatalog;
@@ -357,6 +386,10 @@ const SmartFlowRouter = (function() {
         return reducerTypes.length > 0 ? reducerTypes[0] : null;
     }
 
+    // ================================================================
+    //  ENSUREFITTINGS v3.6.4
+    // ================================================================
+
     function ensureFittings(lineObj, fromObj, fromPortId, toObj, toPortId, diameter, material, spec) {
         if (!lineObj) return { added: [], message: ' | ⚠️ Sin objeto de línea' };
         var puntos = lineObj._cachedPoints || lineObj.points3D || [];
@@ -373,9 +406,11 @@ const SmartFlowRouter = (function() {
             });
         }
         
+        // ✅ v3.6.4: Banderas sin guion bajo
         var skipOriginFittings = lineObj.fittingInsertedAtOrigin === true;
         var skipDestFittings = lineObj.fittingInsertedAtDestination === true;
         
+        // --- REDUCTOR EN ORIGEN ---
         if (fromObj && fromPortId && !skipOriginFittings) {
             var diamPuertoOrigen = getPortDiameter(fromObj, fromPortId);
             var diamLineaOrig = parseFloat(lineObj.diameter || diameter);
@@ -388,6 +423,7 @@ const SmartFlowRouter = (function() {
             }
         }
         
+        // --- REDUCTOR EN DESTINO ---
         if (toObj && toPortId && !skipDestFittings) {
             var diamPuertoDestino = getPortDiameter(toObj, toPortId);
             var diamLinea = parseFloat(lineObj.diameter || diameter);
@@ -400,6 +436,7 @@ const SmartFlowRouter = (function() {
             }
         }
         
+        // --- CODO EN INICIO ---
         if (fromObj && fromPortId && puntos.length >= 2 && !skipOriginFittings) {
             var dirPuerto = getPortDirection(fromObj, fromPortId);
             var vInicial = { x: puntos[1].x - puntos[0].x, y: puntos[1].y - puntos[0].y, z: puntos[1].z - puntos[0].z };
@@ -415,6 +452,7 @@ const SmartFlowRouter = (function() {
             }
         }
         
+        // --- CODOS INTERMEDIOS ---
         var totalLen = 0;
         for (var i = 0; i < puntos.length - 1; i++) { totalLen += Math.hypot(puntos[i+1].x - puntos[i].x, puntos[i+1].y - puntos[i].y, puntos[i+1].z - puntos[i].z); }
         for (var i2 = 1; i2 < puntos.length - 1; i2++) {
@@ -438,6 +476,7 @@ const SmartFlowRouter = (function() {
             }
         }
         
+        // --- CODO EN FIN ---
         if (toObj && toPortId && puntos.length >= 2 && !skipDestFittings) {
             var dirPuertoDest = getPortDirection(toObj, toPortId);
             var dirLlegada = { x: puntos[puntos.length - 1].x - puntos[puntos.length - 2].x, y: puntos[puntos.length - 1].y - puntos[puntos.length - 2].y, z: puntos[puntos.length - 1].z - puntos[puntos.length - 2].z };
@@ -473,6 +512,10 @@ const SmartFlowRouter = (function() {
         }
         return { added: [], message: ' | 📐 Continuidad geométrica OK' };
     }
+
+    // ================================================================
+    //  INSERTAR ACCESORIO EN LÍNEA
+    // ================================================================
 
     function insertarAccesorioEnLinea(lineTag, puntoConexion, diametroNuevaLinea, forzarTee, branchOrientation) {
         ensureInitialized();
@@ -529,6 +572,7 @@ const SmartFlowRouter = (function() {
         var comp = { type: compEnCatalogo, tag: compEnCatalogo + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4), param: param, diameter: diamLinea, material: lineMaterial, spec: lineSpec, branchOrientation: branchOrientation };
         linea.components.push(comp);
         
+        // ✅ v3.6.4: Fallback de generación de puertos
         var puertosGenerados = false;
         if (typeof _catalog !== 'undefined' && _catalog.getComponent) {
             var compDef = _catalog.getComponent(compEnCatalogo);
@@ -566,6 +610,10 @@ const SmartFlowRouter = (function() {
         return null;
     }
 
+    // ================================================================
+    //  PROCESAR INTERSECCIONES DE LÍNEA
+    // ================================================================
+
     function procesarInterseccionesDeLinea(nuevaLinea) {
         ensureInitialized();
         if (!_core) return;
@@ -602,6 +650,10 @@ const SmartFlowRouter = (function() {
         }
     }
 
+    // ================================================================
+    //  GENERAR TAG ÚNICO
+    // ================================================================
+
     function generateUniqueLineTag() {
         if (!_core) return 'L-' + Date.now();
         var db = _core.getDb();
@@ -612,6 +664,10 @@ const SmartFlowRouter = (function() {
         do { tag = 'L-' + counter; counter++; } while (existingTags.has(tag) && counter < 10000);
         return tag;
     }
+
+    // ================================================================
+    //  RUTEO ENTRE PUERTOS (v3.6.4)
+    // ================================================================
 
     function routeBetweenPorts(fromEquipTag, fromPortId, toEquipTag, toPortId, diameter, material, spec, options) {
         ensureInitialized();
@@ -689,6 +745,7 @@ const SmartFlowRouter = (function() {
         var isFromEquip = fromObj.posX !== undefined || (fromObj.pos && fromObj.pos.x !== undefined);
         var isToEquip = toObj.posX !== undefined || (toObj.pos && toObj.pos.x !== undefined);
         
+        // ✅ v3.6.4: Banderas sin guion bajo
         var nuevaLinea = {
             tag: tag, diameter: diameter, material: material, spec: spec,
             origin: { objType: isFromEquip ? 'equipment' : 'line', equipTag: fromEquipTag, portId: fromPortId },
@@ -709,6 +766,10 @@ const SmartFlowRouter = (function() {
         if (_renderUI) _renderUI();
         return lineaRegistrada;
     }
+
+    // ================================================================
+    //  RUTEO CON WAYPOINTS (v3.6.4)
+    // ================================================================
 
     function routeWithWaypoints(fromEquipTag, fromPortId, toEquipTag, toPortId, waypoints, diameter, material, spec, options) {
         ensureInitialized();
@@ -785,6 +846,7 @@ const SmartFlowRouter = (function() {
         var isFromEquip = fromObj.posX !== undefined || (fromObj.pos && fromObj.pos.x !== undefined);
         var isToEquip = toObj.posX !== undefined || (toObj.pos && toObj.pos.x !== undefined);
         
+        // ✅ v3.6.4: Banderas sin guion bajo
         var nuevaLinea = {
             tag: tag, diameter: diameter, material: material, spec: spec,
             origin: { objType: isFromEquip ? 'equipment' : 'line', equipTag: fromEquipTag, portId: fromPortId },
@@ -808,6 +870,10 @@ const SmartFlowRouter = (function() {
         if (_renderUI) _renderUI();
         return lineaRegistrada;
     }
+
+    // ================================================================
+    //  HANDLER DE SNAP / COMANDOS DIRECTOS / INIT / API
+    // ================================================================
 
     function handleSnapClick(snapData) {
         if (!snapData) return;
