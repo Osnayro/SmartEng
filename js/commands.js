@@ -1,5 +1,25 @@
-
+// ============================================================
+// SMARTFLOW COMMANDS v3.7 - Intérprete de Comandos Unificado
 // Archivo: js/commands.js
+// Compatible: SmartFlowCore v5.6 + SmartFlowRouter v3.6 + SmartFlowCatalog v4.1
+// Novedades v3.7:
+//   - Eliminado skeyToInternal (ahora en SmartFlowIO)
+//   - Eliminado importPCF (ahora en SmartFlowIO)
+//   - Export/Import delegados a SmartFlowIO con fallback
+//   - parseNodes MEJORADO: coordenadas, iconos 🟢/🔴, puertos TEE
+//   - parseNodosAbiertos: puertos disponibles con nombre completo
+//   - Nombres de puerto listos para copiar y pegar (L-1.TEE_xyz_P3)
+//   - parseLineFromTo: creación de línea en un solo paso
+//   - parseExtendLine: extender línea existente
+//   - parseOptimizeRoute: eliminar puntos colineales
+//   - parseRerouteLine: recalcular ruta completa
+//   - parseSetProject: configurar defaults de material/spec
+//   - extractBranchOrientation: keywords direccionales
+//   - calculateBranchDirection: dirección automática del BRANCH
+//   - validateTeeSpace: validar espacio para inserción
+//   - resolveMaterialAndSpec: NO hereda material sin confirmación
+//   - checkMaterialCompatibility: advertencias de incompatibilidad
+// ============================================================
 
 const SmartFlowCommands = (function() {
     
@@ -10,6 +30,9 @@ const SmartFlowCommands = (function() {
     let _renderUI = () => {};
     let _voiceFn = null;
 
+    // ================================================================
+    //  DICCIONARIO DE INTENCIONES MULTILINGÜE
+    // ================================================================
     const IntentDictionary = {
         'crear': 'create', 'nuevo': 'create', 'añadir': 'create', 'instalar': 'create', 'pon': 'create', 'crea': 'create',
         'create': 'create', 'add': 'create',
@@ -67,6 +90,9 @@ const SmartFlowCommands = (function() {
         return cmd;
     }
 
+    // ================================================================
+    //  DEFAULTS DEL PROYECTO (Configurables)
+    // ================================================================
     let _projectDefaults = {
         material: 'PPR',
         spec: 'PPR_PN12_5'
@@ -100,6 +126,9 @@ const SmartFlowCommands = (function() {
         notifyWithVoice("📐 Defaults del proyecto: " + _projectDefaults.material + " / " + _projectDefaults.spec, false);
     }
 
+    // ================================================================
+    //  UTILIDADES
+    // ================================================================
     function extractCoords(str) {
         const m = str.match(/\((-?\d+\.?\d*)\s*,?\s*(-?\d+\.?\d*)\s*,?\s*(-?\d+\.?\d*)\)/);
         return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]), z: parseFloat(m[3]) } : null;
@@ -619,6 +648,10 @@ const SmartFlowCommands = (function() {
         return positions;
     }
 
+    // ================================================================
+    //  COMANDO INFO
+    // ================================================================
+
     function parseInfo(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'info') return false;
@@ -725,6 +758,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO POINT / COORDENADAS
+    // ================================================================
+
     function parsePoint(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'point' && parts[0] !== 'coordenadas') return false;
@@ -811,6 +848,10 @@ const SmartFlowCommands = (function() {
             return true;
         } catch (e) { notifyWithVoice('❌ Error: ' + e.message, true); return true; }
     }
+
+    // ================================================================
+    //  COMANDO NODES / NODOS
+    // ================================================================
 
     function parseNodes(cmd) {
         const parts = cmd.trim().split(/\s+/);
@@ -925,6 +966,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO NODOS ABIERTOS
+    // ================================================================
+
     function parseNodosAbiertos(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'nodos' && parts[0] !== 'nodes') return false;
@@ -1036,6 +1081,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO LISTAR
+    // ================================================================
+
     function listEquipos() { 
         const eqs = _core.getDb().equipos; 
         notifyWithVoice(eqs.length ? '📦 Equipos (' + eqs.length + '): ' + eqs.map(function(e) { return e.tag; }).join(', ') : 'No hay equipos'); 
@@ -1065,6 +1114,10 @@ const SmartFlowCommands = (function() {
         notifyWithVoice('Use: listar equipos | listar lineas | listar componentes | listar especificaciones');
         return true;
     }
+
+    // ================================================================
+    //  COMANDO MEASURE / DISTANCIA
+    // ================================================================
 
     function parseMeasure(cmd) {
         const parts = cmd.trim().split(/\s+/);
@@ -1101,6 +1154,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO PLACE
+    // ================================================================
+    
     function parsePlace(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'place' && parts[0] !== 'apoyar' && parts[0] !== 'posar' && parts[0] !== 'poner' && parts[0] !== 'colocar') return false;
@@ -1140,6 +1197,10 @@ const SmartFlowCommands = (function() {
         notifyWithVoice('✅ ' + tag + ' apoyado sobre ' + superficieNombre + '\n   Centro Y=' + nuevoPosY.toFixed(0) + 'mm | Base EL ' + (baseElev/1000 >= 0 ? '+' : '') + (baseElev/1000).toFixed(3) + 'm', false);
         return true;
     }
+
+    // ================================================================
+    //  COMANDO CREATE EQUIPO
+    // ================================================================
 
     function parseCreate(cmd) {
         const parts = cmd.split(/\s+/);
@@ -1181,6 +1242,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO CREATE LINE
+    // ================================================================
+
     function parseCreateLine(cmd) {
         const parts = cmd.split(/\s+/);
         if (parts[0] !== 'create' || parts[1] !== 'line') return false;
@@ -1218,6 +1283,10 @@ const SmartFlowCommands = (function() {
         notifyWithVoice("✅ Línea " + tag + " creada: " + material + " " + diameter + "\" " + spec + (fittingInfo.message || ''), false);
         return true;
     }
+
+    // ================================================================
+    //  COMANDO CONNECT
+    // ================================================================
 
     function parseConnect(cmd) {
         const parts = cmd.split(/\s+/);
@@ -1376,6 +1445,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO ROUTE
+    // ================================================================
+
     function parseRoute(cmd) {
         const parts = cmd.split(/\s+/);
         if (parts[0] !== 'route' && parts[0] !== 'ruta') return false;
@@ -1409,6 +1482,10 @@ const SmartFlowCommands = (function() {
         } else { notifyWithVoice("Módulo Router no disponible.", true); }
         return true;
     }
+
+    // ================================================================
+    //  COMANDO TAP
+    // ================================================================
 
     function parseTap(cmd) {
         const parts = cmd.trim().split(/\s+/);
@@ -1461,6 +1538,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO SPLIT
+    // ================================================================
+
     function parseSplit(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'split' && parts[0] !== 'dividir' && parts[0] !== 'romper') return false;
@@ -1474,6 +1555,10 @@ const SmartFlowCommands = (function() {
         else { notifyWithVoice("Error: Punto fuera de la línea " + lineTag, true); }
         return true;
     }
+
+    // ================================================================
+    //  COMANDO DELETE
+    // ================================================================
 
     function parseDelete(cmd) {
         const parts = cmd.split(/\s+/);
@@ -1550,6 +1635,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO EDIT
+    // ================================================================
+
     function parseEditCommand(cmd) {
         const parts = cmd.split(/\s+/);
         if (parts[0] !== 'edit' && parts[0] !== 'editar') return false;
@@ -1605,6 +1694,10 @@ const SmartFlowCommands = (function() {
         return false;
     }
 
+    // ================================================================
+    //  COMANDO MOVE
+    // ================================================================
+
     function parseMoveCommand(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'move' && parts[0] !== 'mover') return false;
@@ -1637,6 +1730,10 @@ const SmartFlowCommands = (function() {
         if (_renderUI) _renderUI();
         return true;
     }
+
+    // ================================================================
+    //  COMANDO ROTATE
+    // ================================================================
 
     function parseRotate(cmd) {
         const parts = cmd.trim().split(/\s+/);
@@ -1679,6 +1776,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO DUPLICATE
+    // ================================================================
+
     function parseDuplicate(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'duplicate' && parts[0] !== 'duplicar' && parts[0] !== 'copy' && parts[0] !== 'copiar') return false;
@@ -1716,6 +1817,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO ALIGN
+    // ================================================================
+
     function parseAlign(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'align' && parts[0] !== 'alinear') return false;
@@ -1745,6 +1850,10 @@ const SmartFlowCommands = (function() {
         if (_renderUI) _renderUI();
         return true;
     }
+
+    // ================================================================
+    //  COMANDO ACCESSORIES
+    // ================================================================
 
     function parseAccessoriesCommand(cmd) {
         const parts = cmd.trim().split(/\s+/);
@@ -1826,6 +1935,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  COMANDO BOM, AUDIT, HELP, MACRO, EXPORT, VIEW, PCF
+    // ================================================================
+
     function parseBOM(cmd) { 
         const t = cmd.trim().toLowerCase(); 
         if (t === 'bom' || t === 'mto' || t === 'generate bom' || t === 'generar bom') { generateBOM(); return true; } 
@@ -1834,10 +1947,12 @@ const SmartFlowCommands = (function() {
     
     function generateBOM() {
         if (!_core) { notifyWithVoice("Error: Core no inicializado", true); return; }
+        // Delegar a SmartFlowIO si está disponible
         if (typeof SmartFlowIO !== 'undefined' && SmartFlowIO.downloadMTO) {
             SmartFlowIO.downloadMTO();
             return;
         }
+        // Fallback
         const db = _core.getDb(); const lines = db.lines || []; const equipos = db.equipos || []; let items = [];
         equipos.forEach(function(eq) { if (eq.tipo !== 'colector') { items.push({ tipo: 'EQUIPO', tag: eq.tag, descripcion: (eq.tipo || 'Equipo') + ' ' + (eq.material || ''), cantidad: 1, unidad: 'Und' }); } });
         const pipeMap = new Map();
@@ -1971,6 +2086,7 @@ const SmartFlowCommands = (function() {
         if (parts[0] !== 'export' && parts[0] !== 'exportar') return false;
         const format = parts[1] ? parts[1].toLowerCase() : null;
         
+        // Delegar a SmartFlowIO
         if (format === 'pcf') {
             if (typeof SmartFlowIO !== 'undefined' && SmartFlowIO.downloadPCF) {
                 SmartFlowIO.downloadPCF();
@@ -2023,6 +2139,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  NUEVOS COMANDOS v3.5
+    // ================================================================
+    
     function parseLineFromTo(cmd) {
         const parts = cmd.trim().split(/\s+/);
         if (parts[0] !== 'line' && parts[0] !== 'linea') return false;
@@ -2205,6 +2325,10 @@ const SmartFlowCommands = (function() {
         return true;
     }
 
+    // ================================================================
+    //  EJECUCIÓN PRINCIPAL DE COMANDOS
+    // ================================================================
+
     function executeCommand(cmd) {
         if (!cmd || cmd.startsWith('//')) return false;
         const normalized = normalizeCommand(cmd);
@@ -2266,6 +2390,9 @@ const SmartFlowCommands = (function() {
         _notifyUI = notifyFn || _notifyUI; _renderUI = renderFn || _renderUI; _voiceFn = voiceFn || null;
     }
 
+    // ================================================================
+    //  API PÚBLICA
+    // ================================================================
     return {
         init: init, executeCommand: executeCommand, executeBatch: executeBatch,
         getPortDirectionLocal: getPortDirectionLocal, getTopSurface: getTopSurface,
