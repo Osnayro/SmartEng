@@ -1,8 +1,17 @@
 
+// ============================================================
+// SMARTFLOW CATALOG v4.1.2 - Catálogo Industrial Unificado
 // Archivo: js/catalog.js
+// Industrias: Agua • Oil&Gas • Petroquímica • Química • Alimentos
+// Novedades v4.1.2:
+//   - Añadida variante bomba_z (succión +Z, descarga +Y superior)
+// ============================================================
 
 const SmartFlowCatalog = (function() {
     
+    // ================================================================
+    // 1. ESPECIFICACIONES DE MATERIALES
+    // ================================================================
     const specs = {
         "PPR_PN12_5": { material: "PPR", norma: "IRAM 13471", presion: "PN 12.5", color: 0x7c3aed, conexion: "TERMOFUSION" },
         "ACERO_SCH80": { material: "Acero al Carbono", norma: "ASTM A106 Gr. B", schedule: "SCH 80", color: 0x94a3b8, conexion: "NPT" },
@@ -33,6 +42,9 @@ const SmartFlowCatalog = (function() {
         "MADERA_ESTRUCTURAL": { material: "Madera Estructural", norma: "NDS 2018", color: 0x8b6914, conexion: "CLAVADO/PERNADO" }
     };
 
+    // ================================================================
+    // 2. DEFINICIÓN DE EQUIPOS (COMPLETO)
+    // ================================================================
     const equipment = {
         tanque_v: { 
             nombre: 'Tanque Vertical', categoria: 'almacenamiento', forma: 'cilindro',
@@ -452,6 +464,9 @@ const SmartFlowCatalog = (function() {
         }
     };
 
+    // ================================================================
+    // 3. COMPONENTES DE TUBERÍA
+    // ================================================================
     const components = {
         TEE_EQUAL_CS: { tipo: 'TEE_EQUAL', nombre: 'Tee Recta Acero', abbr: 'TE', spec: 'ACERO_150_RF', norma: 'ASTM A234 WPB', material: 'Acero al Carbono' },
         TEE_REDUCING_CS: { tipo: 'TEE_REDUCING', nombre: 'Tee Reductora Acero', abbr: 'TR', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
@@ -603,6 +618,12 @@ const SmartFlowCatalog = (function() {
         SANITARY_SAMPLE_VALVE: { tipo: 'SAMPLE_VALVE_SANITARY', nombre: 'Válvula Muestreo Sanitaria', abbr: 'SV', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP', material: '316L' },
         SANITARY_PRESSURE_GAUGE: { tipo: 'PRESSURE_GAUGE_SANITARY', nombre: 'Manómetro Sanitario', abbr: 'PG', spec: 'SS_SANITARY', conexion: 'TRI-CLAMP' }
     };
+
+    // ================================================================
+    // 4-10. GENERADORES, DIMENSIONES, ALIAS, FACTORÍA, API
+    // ================================================================
+    // [Se mantiene exactamente igual que en v4.1.1]
+    // ... (todo el resto del archivo sin cambios)
 
     function calculateLineDirection(line, param) {
         if (!line) return { dx: 1, dy: 0, dz: 0 };
