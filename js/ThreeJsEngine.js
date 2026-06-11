@@ -1,3 +1,8 @@
+// Archivo: js/ThreeJsEngine.js
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
 const ThreeJsEngine = (function() {
     let _scene = null;
     let _camera = null;
@@ -9,8 +14,8 @@ const ThreeJsEngine = (function() {
     let _visualMeshes = new Map();
     let _raycastTargets = [];
     
-    let _raycaster = null;
-    let _mouse = null;
+    let _raycaster = new THREE.Raycaster();
+    let _mouse = new THREE.Vector2();
     
     let _animationId = null;
     let _loopActive = false;
@@ -20,36 +25,7 @@ const ThreeJsEngine = (function() {
     
     const BASE_FRUSTUM_SIZE = 20;
     
-    let THREE_REF = null;
-    let OrbitControlsRef = null;
-    
-    function ensureThree() {
-        if (THREE_REF) return true;
-        if (typeof THREE !== 'undefined') {
-            THREE_REF = THREE;
-            return true;
-        }
-        console.error('ThreeJsEngine: THREE no está disponible');
-        return false;
-    }
-    
-    async function ensureOrbitControls() {
-        if (OrbitControlsRef) return true;
-        if (typeof THREE !== 'undefined' && THREE.OrbitControls) {
-            OrbitControlsRef = THREE.OrbitControls;
-            return true;
-        }
-        try {
-            const mod = await import('three/addons/controls/OrbitControls.js');
-            OrbitControlsRef = mod.OrbitControls;
-            return true;
-        } catch (e) {
-            console.warn('ThreeJsEngine: OrbitControls no disponibles');
-            return false;
-        }
-    }
-    
-    async function init(containerElement, coreInstance) {
+    function init(containerElement, coreInstance) {
         _container = containerElement;
         _core = coreInstance;
         
@@ -58,15 +34,10 @@ const ThreeJsEngine = (function() {
             return false;
         }
         
-        if (!ensureThree()) return false;
-        
         _container.innerHTML = '';
         
-        _raycaster = new THREE_REF.Raycaster();
-        _mouse = new THREE_REF.Vector2();
-        
         try {
-            _renderer = new THREE_REF.WebGLRenderer({ 
+            _renderer = new THREE.WebGLRenderer({ 
                 antialias: true,
                 alpha: false,
                 preserveDrawingBuffer: true
@@ -74,22 +45,20 @@ const ThreeJsEngine = (function() {
             _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             _renderer.setSize(_container.clientWidth, _container.clientHeight);
             _renderer.shadowMap.enabled = true;
-            _renderer.shadowMap.type = THREE_REF.PCFSoftShadowMap;
+            _renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             _container.appendChild(_renderer.domElement);
         } catch (e) {
             console.error('ThreeJsEngine: Error al crear WebGLRenderer', e);
             return false;
         }
         
-        _scene = new THREE_REF.Scene();
-        _scene.background = new THREE_REF.Color(0x0a0f1a);
+        _scene = new THREE.Scene();
+        _scene.background = new THREE.Color(0x0a0f1a);
         
         _camera = createCamera();
         
-        await ensureOrbitControls();
-        
-        if (OrbitControlsRef) {
-            _controls = new OrbitControlsRef(_camera, _renderer.domElement);
+        try {
+            _controls = new OrbitControls(_camera, _renderer.domElement);
             _controls.target.set(0, 0, 0);
             _controls.enableDamping = true;
             _controls.dampingFactor = 0.08;
@@ -97,9 +66,10 @@ const ThreeJsEngine = (function() {
             _controls.zoomSpeed = 1.0;
             _controls.panSpeed = 0.6;
             _controls.update();
-        } else {
+        } catch (e) {
+            console.warn('ThreeJsEngine: OrbitControls no disponible');
             _controls = {
-                target: new THREE_REF.Vector3(0, 0, 0),
+                target: new THREE.Vector3(0, 0, 0),
                 update: function() {},
                 enableDamping: false
             };
@@ -118,7 +88,7 @@ const ThreeJsEngine = (function() {
         
         resumeLoop();
         
-        console.log('ThreeJsEngine v3.0 (Three.js v0.160.0)');
+        console.log('✔ ThreeJsEngine v3.0 r160 (migrado)');
         return true;
     }
     
@@ -126,7 +96,7 @@ const ThreeJsEngine = (function() {
         var aspect = (_container.clientWidth / _container.clientHeight) || 1;
         var frustumSize = BASE_FRUSTUM_SIZE;
         
-        var camera = new THREE_REF.OrthographicCamera(
+        var camera = new THREE.OrthographicCamera(
             frustumSize * aspect / -2,
             frustumSize * aspect / 2,
             frustumSize / 2,
@@ -142,10 +112,10 @@ const ThreeJsEngine = (function() {
     }
     
     function setupLights() {
-        var ambientLight = new THREE_REF.AmbientLight(0x334455, 1.5);
+        var ambientLight = new THREE.AmbientLight(0x334455, 1.5);
         _scene.add(ambientLight);
         
-        var sunLight = new THREE_REF.DirectionalLight(0xffffff, 2.5);
+        var sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
         sunLight.position.set(20, 30, 15);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
@@ -158,16 +128,16 @@ const ThreeJsEngine = (function() {
         sunLight.shadow.camera.bottom = -40;
         _scene.add(sunLight);
         
-        var fillLight = new THREE_REF.DirectionalLight(0x8899cc, 0.6);
+        var fillLight = new THREE.DirectionalLight(0x8899cc, 0.6);
         fillLight.position.set(-8, 4, -10);
         _scene.add(fillLight);
         
-        var hemiLight = new THREE_REF.HemisphereLight(0x8899cc, 0x334455, 0.4);
+        var hemiLight = new THREE.HemisphereLight(0x8899cc, 0x334455, 0.4);
         _scene.add(hemiLight);
     }
     
     function setupGrid() {
-        var gridHelper = new THREE_REF.GridHelper(40, 40, 0x2a3a5a, 0x1a2a3a);
+        var gridHelper = new THREE.GridHelper(40, 40, 0x2a3a5a, 0x1a2a3a);
         gridHelper.position.y = -0.01;
         _scene.add(gridHelper);
     }
@@ -175,28 +145,28 @@ const ThreeJsEngine = (function() {
     let _axesGroup = null;
     
     function setupAxes() {
-        _axesGroup = new THREE_REF.Group();
+        _axesGroup = new THREE.Group();
         _axesGroup.userData = { isAxesGroup: true };
         
         var len = 2;
         var head = 0.3;
         var headSize = 0.15;
         
-        _axesGroup.add(new THREE_REF.ArrowHelper(
-            new THREE_REF.Vector3(1, 0, 0), new THREE_REF.Vector3(0, 0, 0), len, 0xff4444, head, headSize
+        _axesGroup.add(new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), len, 0xff4444, head, headSize
         ));
-        _axesGroup.add(new THREE_REF.ArrowHelper(
-            new THREE_REF.Vector3(0, 1, 0), new THREE_REF.Vector3(0, 0, 0), len, 0x44ff44, head, headSize
+        _axesGroup.add(new THREE.ArrowHelper(
+            new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), len, 0x44ff44, head, headSize
         ));
-        _axesGroup.add(new THREE_REF.ArrowHelper(
-            new THREE_REF.Vector3(0, 0, 1), new THREE_REF.Vector3(0, 0, 0), len, 0x4444ff, head, headSize
+        _axesGroup.add(new THREE.ArrowHelper(
+            new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), len, 0x4444ff, head, headSize
         ));
         
         _scene.add(_axesGroup);
     }
     
     function getIntersections(event) {
-        if (!_renderer || !_camera || !_raycaster || !_mouse) return [];
+        if (!_renderer || !_camera) return [];
         var rect = _renderer.domElement.getBoundingClientRect();
         _mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         _mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -281,8 +251,7 @@ const ThreeJsEngine = (function() {
                 !child.userData.isFlowArrowGroup &&
                 !child.userData.isLabelGroup &&
                 !child.userData.isDimensionGroup3D &&
-                !child.userData.isAxesGroup &&
-                !child.userData.isNozzleGroup) {
+                !child.userData.isAxesGroup) {
                 toRemove.push(child);
             }
         });
@@ -326,10 +295,13 @@ const ThreeJsEngine = (function() {
         } else if (_renderer && _scene && _camera) {
             _renderer.render(_scene, _camera);
         }
+        if (typeof SmartFlowLabels3D !== 'undefined' && SmartFlowLabels3D.render) {
+            SmartFlowLabels3D.render();
+        }
     }
     
     function onResize() {
-        if (!_container || !_camera || !_renderer || !THREE_REF) return;
+        if (!_container || !_camera || !_renderer) return;
         var width = _container.clientWidth;
         var height = _container.clientHeight;
         if (width === 0 || height === 0) return;
@@ -344,15 +316,15 @@ const ThreeJsEngine = (function() {
     }
     
     function fitCameraToEquipments() {
-        if (!_scene || !_camera || !_controls || !THREE_REF) return;
+        if (!_scene || !_camera || !_controls) return;
         
-        var bounds = new THREE_REF.Box3();
+        var bounds = new THREE.Box3();
         var hasValidObject = false;
         
         _scene.traverse(function(child) {
             if (child.isMesh && child.visible && child.geometry) {
-                if (child instanceof THREE_REF.GridHelper) return;
-                if (child instanceof THREE_REF.ArrowHelper) return;
+                if (child instanceof THREE.GridHelper) return;
+                if (child instanceof THREE.ArrowHelper) return;
                 if (child.userData && (child.userData.isLabel || child.userData.isLabelAnchor || 
                     child.userData.isLineLabel || child.userData.isDimensionText)) return;
                 bounds.expandByObject(child);
@@ -369,8 +341,8 @@ const ThreeJsEngine = (function() {
             return;
         }
         
-        var center = bounds.getCenter(new THREE_REF.Vector3());
-        var size = bounds.getSize(new THREE_REF.Vector3());
+        var center = bounds.getCenter(new THREE.Vector3());
+        var size = bounds.getSize(new THREE.Vector3());
         var maxDim = Math.max(size.x, size.y, size.z, 1);
         
         var padding = 1.2;
@@ -394,7 +366,7 @@ const ThreeJsEngine = (function() {
     
     function setView(type) {
         if (!_camera || !_controls) return;
-        var center = new THREE_REF.Vector3();
+        var center = new THREE.Vector3();
         if (_controls.target) center.copy(_controls.target);
         var dist = 30;
         switch(type) {
@@ -435,8 +407,6 @@ const ThreeJsEngine = (function() {
         _core = null;
         _visualMeshes.clear();
         _raycastTargets = [];
-        THREE_REF = null;
-        OrbitControlsRef = null;
     }
     
     return {
@@ -460,3 +430,5 @@ const ThreeJsEngine = (function() {
         dispose: dispose
     };
 })();
+
+window.ThreeJsEngine = ThreeJsEngine;
