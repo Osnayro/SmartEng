@@ -1,8 +1,13 @@
 
 // ============================================================
-// SMARTFLOW CATALOG v4.1.2 - Catálogo Industrial Unificado
+// SMARTFLOW CATALOG v4.1.3 - Catálogo Industrial Unificado
 // Archivo: js/catalog.js
 // Industrias: Agua • Oil&Gas • Petroquímica • Química • Alimentos
+// Novedades v4.1.3:
+//   - Añadidos componentes de 2" para lazos de control
+//   - Adaptadores PPR 2", Niples 2", Unión 2000#, Pasamuros 2"
+//   - Válvulas 2": Bola, Check, Compuerta, Mariposa, Control
+//   - Stub End PPR 2"
 // Novedades v4.1.2:
 //   - Añadida variante bomba_z (succión +Z, descarga +Y superior)
 // ============================================================
@@ -495,11 +500,16 @@ const SmartFlowCatalog = (function() {
         BALL_VALVE_PPR: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola PPR', abbr: 'BA', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         BALL_VALVE_HDPE: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola HDPE', abbr: 'BA', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
         BALL_VALVE_SS: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola Inoxidable', abbr: 'BA', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
+        BALL_VALVE_CS_2IN: { tipo: 'BALL_VALVE', nombre: 'Válvula de Bola Acero 2" 150#', abbr: 'BA', spec: 'ACERO_150_RF', material: 'Acero al Carbono', diametro: 2 },
+        CHECK_VALVE_SWING_CS_2IN: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check Swing Acero 2"', abbr: 'CK', spec: 'ACERO_150_RF', material: 'Acero al Carbono', diametro: 2 },
+        GATE_VALVE_CS_2IN: { tipo: 'GATE_VALVE', nombre: 'Válvula Compuerta Acero 2" 150#', abbr: 'GV', spec: 'ACERO_150_RF', material: 'Acero al Carbono', diametro: 2 },
+        BUTTERFLY_VALVE_CS_2IN: { tipo: 'BUTTERFLY_VALVE', nombre: 'Válvula Mariposa Acero 2" 150#', abbr: 'VB', spec: 'ACERO_150_RF', conexion: 'WAFER', material: 'Acero al Carbono', diametro: 2 },
         CHECK_VALVE_SWING_CS: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check Swing Acero', abbr: 'CK', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         CHECK_VALVE_WAFER_SS: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check Wafer Inox', abbr: 'CK', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
         CHECK_VALVE_PPR: { tipo: 'CHECK_VALVE', nombre: 'Válvula Check PPR', abbr: 'CK', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         DIAPHRAGM_VALVE_PTFE: { tipo: 'DIAPHRAGM_VALVE', nombre: 'Válvula de Diafragma PTFE', abbr: 'DV', spec: 'PTFE_LINED', material: 'PTFE' },
         CONTROL_VALVE_CS: { tipo: 'CONTROL_VALVE', nombre: 'Válvula de Control Acero', abbr: 'CV', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
+        CONTROL_VALVE_CS_2IN: { tipo: 'CONTROL_VALVE', nombre: 'Válvula de Control Modulante Acero 2"', abbr: 'CV', spec: 'ACERO_150_RF', material: 'Acero al Carbono', diametro: 2 },
         PRESSURE_RELIEF_VALVE: { tipo: 'PRESSURE_RELIEF', nombre: 'Válvula de Alivio', abbr: 'RV', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         SAFETY_VALVE_SS: { tipo: 'SAFETY_VALVE', nombre: 'Válvula de Seguridad Inox', abbr: 'SV', spec: 'SS_150_RF', material: 'Acero Inoxidable' },
         ELBOW_90_LR_CS: { tipo: 'ELBOW_90_LR', nombre: 'Codo 90° Radio Largo Acero', abbr: 'EL', spec: 'ACERO_150_RF', material: 'Acero al Carbono', angulo: 90 },
@@ -527,20 +537,27 @@ const SmartFlowCatalog = (function() {
         LAP_JOINT_FLANGE_150: { tipo: 'LAP_JOINT_FLANGE', nombre: 'Brida Loca Acero', abbr: 'FL', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         STUB_END_PPR: { tipo: 'STUB_END', nombre: 'Portabrida PPR', abbr: 'SE', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         STUB_END_HDPE: { tipo: 'STUB_END', nombre: 'Portabrida HDPE', abbr: 'SE', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
+        STUB_END_PPR_2IN: { tipo: 'STUB_END', nombre: 'Portabrida PPR 63mm (2")', abbr: 'SE', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR', diametro: 2 },
         CAP_CS: { tipo: 'CAP', nombre: 'Tapón Acero', abbr: 'CA', spec: 'ACERO_150_RF', material: 'Acero al Carbono' },
         CAP_PPR: { tipo: 'CAP', nombre: 'Tapón PPR', abbr: 'CA', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         UNION_CS_3000: { tipo: 'UNION', nombre: 'Unión Universal Acero 3000', abbr: 'UN', spec: 'ACERO_SCH80', material: 'Acero al Carbono' },
+        UNION_CS_2000: { tipo: 'UNION', nombre: 'Unión Universal Acero 2" 2000#', abbr: 'UN', spec: 'ACERO_SCH80', material: 'Acero al Carbono', diametro: 2 },
         UNION_PPR: { tipo: 'UNION', nombre: 'Unión Universal PPR', abbr: 'UN', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR' },
         UNION_HDPE: { tipo: 'UNION', nombre: 'Unión Universal HDPE', abbr: 'UN', spec: 'HDPE_PE100', conexion: 'ELECTROFUSION', material: 'HDPE' },
         BULKHEAD_PE_3IN: { tipo: 'BULKHEAD', nombre: 'Pasamuros Heavy Duty 3 pulgadas', abbr: 'BH', material: 'PP_EPDM', conexion: 'NPT_HEMBRA', diametro: 3 },
         BULKHEAD_PE_4IN: { tipo: 'BULKHEAD', nombre: 'Pasamuros Heavy Duty 4 pulgadas', abbr: 'BH', material: 'PP_EPDM', conexion: 'NPT_HEMBRA', diametro: 4 },
+        BULKHEAD_PE_2IN: { tipo: 'BULKHEAD', nombre: 'Pasamuros Heavy Duty 2 pulgadas', abbr: 'BH', material: 'PP_EPDM', conexion: 'NPT_HEMBRA', diametro: 2 },
         BULKHEAD: { tipo: 'BULKHEAD', nombre: 'Pasamuros Heavy Duty', abbr: 'BH', material: 'PP_EPDM', conexion: 'NPT_HEMBRA' },
         ADAPTADOR_MACHO_PPR_3IN: { tipo: 'TRANSITION', nombre: 'Adaptador Macho PPR 90mm x 3 NPT', abbr: 'AM', spec_origen: 'PPR_PN12_5', spec_destino: 'ACERO_SCH80', conexion_origen: 'TERMOFUSION', conexion_destino: 'NPT_MACHO' },
         ADAPTADOR_HEMBRA_PPR_3IN: { tipo: 'TRANSITION', nombre: 'Adaptador Hembra PPR 90mm x 3 NPT', abbr: 'AH', spec_origen: 'PPR_PN12_5', spec_destino: 'ACERO_SCH80', conexion_origen: 'TERMOFUSION', conexion_destino: 'NPT_HEMBRA' },
+        ADAPTADOR_MACHO_PPR_2IN: { tipo: 'TRANSITION', nombre: 'Adaptador Macho PPR 63mm x 2 NPT', abbr: 'AM', spec_origen: 'PPR_PN12_5', spec_destino: 'ACERO_SCH80', conexion_origen: 'TERMOFUSION', conexion_destino: 'NPT_MACHO', diametro: 2 },
+        ADAPTADOR_HEMBRA_PPR_2IN: { tipo: 'TRANSITION', nombre: 'Adaptador Hembra PPR 63mm x 2 NPT', abbr: 'AH', spec_origen: 'PPR_PN12_5', spec_destino: 'ACERO_SCH80', conexion_origen: 'TERMOFUSION', conexion_destino: 'NPT_HEMBRA', diametro: 2 },
         TRANSITION_HDPE_STEEL: { tipo: 'TRANSITION', nombre: 'Transición HDPE x Acero', abbr: 'TR', spec_origen: 'HDPE_PE100', spec_destino: 'ACERO_150_RF', conexion_origen: 'ELECTROFUSION', conexion_destino: 'BRIDADA' },
         UNION_UNIVERSAL_ACERO_3IN: { tipo: 'UNION_ACERO', nombre: 'Unión Universal Acero 3 pulgadas', abbr: 'UN', spec: 'ACERO_SCH80', conexion: 'NPT_HEMBRA', material: 'Acero Galvanizado' },
         NIPLE_ACERO_3IN_150MM: { tipo: 'NIPPLE', nombre: 'Niple Acero 3 x 150 mm', abbr: 'NI', spec: 'ACERO_SCH80', conexion: 'NPT_MACHO', material: 'Acero al Carbono', longitud_total: 150 },
         NIPLE_ACERO_3IN_100MM: { tipo: 'NIPPLE', nombre: 'Niple Acero 3 x 100 mm', abbr: 'NI', spec: 'ACERO_SCH80', conexion: 'NPT_MACHO', material: 'Acero al Carbono', longitud_total: 100 },
+        NIPLE_ACERO_2IN_100MM: { tipo: 'NIPPLE', nombre: 'Niple Acero 2 x 100 mm', abbr: 'NI', spec: 'ACERO_SCH80', conexion: 'NPT_MACHO', material: 'Acero al Carbono', longitud_total: 100, diametro: 2 },
+        NIPLE_ACERO_2IN_150MM: { tipo: 'NIPPLE', nombre: 'Niple Acero 2 x 150 mm', abbr: 'NI', spec: 'ACERO_SCH80', conexion: 'NPT_MACHO', material: 'Acero al Carbono', longitud_total: 150, diametro: 2 },
         EXPANSION_JOINT_PPR: { tipo: 'EXPANSION_JOINT', nombre: 'Junta de Expansión PPR', abbr: 'EJ', spec: 'PPR_PN12_5', conexion: 'TERMOFUSION', material: 'PPR_EPDM' },
         EXPANSION_JOINT_CS: { tipo: 'EXPANSION_JOINT', nombre: 'Junta de Expansión Acero', abbr: 'EJ', spec: 'ACERO_150_RF', clase: '150', material: 'Acero al Carbono' },
         Y_STRAINER_CS: { tipo: 'Y_STRAINER', nombre: 'Filtro Tipo Y Acero', abbr: 'YS', spec: 'ACERO_150_RF', clase: '150', malla: '40 Mesh' },
@@ -622,8 +639,6 @@ const SmartFlowCatalog = (function() {
     // ================================================================
     // 4-10. GENERADORES, DIMENSIONES, ALIAS, FACTORÍA, API
     // ================================================================
-    // [Se mantiene exactamente igual que en v4.1.1]
-    // ... (todo el resto del archivo sin cambios)
 
     function calculateLineDirection(line, param) {
         if (!line) return { dx: 1, dy: 0, dz: 0 };
